@@ -1,0 +1,1535 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ホテル検索MCPサーバー 構成とAWS構築手順書</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@500;700;900&family=BIZ+UDPGothic:wght@400;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#E8ECF1;
+  --surface:#FFFFFF;
+  --surface-2:#F3F6F9;
+  --ink:#0D1722;
+  --ink-2:#3A4858;
+  --ink-3:#6C7B8C;
+  --rule:#CDD7E2;
+  --rule-soft:#E1E7EE;
+  --accent:#0E5C6B;
+  --accent-2:#12808F;
+  --accent-pale:#DCEDF0;
+  --new:#A85508;
+  --new-pale:#FBEEDF;
+  --changed:#A31E3B;
+  --changed-pale:#FAE6EA;
+  --reuse:#5F6E80;
+  --reuse-pale:#E7EBF0;
+  --code-bg:#0C1620;
+  --code-ink:#D6E2EC;
+  --code-dim:#7C8FA3;
+  --f-display:"Zen Kaku Gothic New","Hiragino Kaku Gothic ProN","Yu Gothic",sans-serif;
+  --f-body:"BIZ UDPGothic","Hiragino Kaku Gothic ProN","Meiryo",sans-serif;
+  --f-mono:"JetBrains Mono","BIZ UDGothic",ui-monospace,SFMono-Regular,Consolas,monospace;
+  --maxw:1180px;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:70px}
+body{
+  margin:0;background:var(--paper);color:var(--ink);
+  font-family:var(--f-body);font-size:15.5px;line-height:1.85;
+  -webkit-font-smoothing:antialiased;
+}
+a{color:var(--accent);text-decoration:none;border-bottom:1px solid rgba(14,92,107,.3)}
+a:hover{border-bottom-color:var(--accent)}
+:focus-visible{outline:2px solid var(--accent-2);outline-offset:3px}
+
+/* ---------- topbar ---------- */
+.topbar{
+  position:sticky;top:0;z-index:60;background:rgba(12,22,32,.94);
+  backdrop-filter:blur(8px);border-bottom:1px solid rgba(255,255,255,.09);
+}
+.topbar-in{
+  max-width:var(--maxw);margin:0 auto;padding:0 22px;height:52px;
+  display:flex;align-items:center;gap:14px;
+}
+.tb-mark{
+  font-family:var(--f-mono);font-size:10px;letter-spacing:.16em;font-weight:700;
+  color:#0C1620;background:var(--accent-2);padding:3px 7px;border-radius:2px;flex:none;
+}
+.tb-title{
+  font-family:var(--f-display);font-weight:700;font-size:13.5px;color:#E6EEF4;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.tb-spacer{flex:1}
+.tb-link{
+  font-family:var(--f-mono);font-size:11px;letter-spacing:.04em;color:#9DB3C4;
+  border:1px solid rgba(255,255,255,.18);border-radius:2px;padding:4px 10px;flex:none;
+}
+.tb-link:hover{color:#fff;border-color:rgba(255,255,255,.45);background:rgba(255,255,255,.06)}
+.navtoggle{display:none}
+
+/* ---------- hero ---------- */
+.hero{background:var(--code-bg);color:#E6EEF4;padding:52px 0 0;overflow:hidden}
+.hero-in{max-width:var(--maxw);margin:0 auto;padding:0 22px}
+.eyebrow{
+  display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+  font-family:var(--f-mono);font-size:11px;letter-spacing:.18em;color:var(--accent-2);
+  text-transform:uppercase;margin-bottom:16px;
+}
+.eyebrow .ser{border:1px solid var(--accent-2);padding:2px 8px;border-radius:2px}
+.eyebrow .sep{color:#3C5162}
+h1{
+  font-family:var(--f-display);font-weight:900;font-size:clamp(28px,4.6vw,50px);
+  line-height:1.22;letter-spacing:-.01em;margin:0 0 14px;color:#fff;
+}
+h1 .thin{display:block;font-weight:500;font-size:.52em;color:#9DB3C4;letter-spacing:.02em;margin-top:10px}
+.lede{max-width:64ch;color:#B7C7D5;font-size:15px;margin:0 0 26px}
+.datastrip{
+  display:flex;flex-wrap:wrap;gap:1px;background:rgba(255,255,255,.1);
+  border:1px solid rgba(255,255,255,.1);margin-bottom:44px;
+}
+.datastrip div{background:var(--code-bg);padding:11px 16px;flex:1 1 160px}
+.datastrip dt{font-family:var(--f-mono);font-size:9.5px;letter-spacing:.16em;color:#6E8496;text-transform:uppercase}
+.datastrip dd{margin:2px 0 0;font-family:var(--f-mono);font-size:12.5px;color:#DCE7EF}
+
+/* ---------- hop chain (signature) ---------- */
+.chain-wrap{margin-bottom:8px}
+.chain-cap{
+  font-family:var(--f-mono);font-size:10.5px;letter-spacing:.16em;color:#6E8496;
+  text-transform:uppercase;margin-bottom:14px;display:flex;align-items:center;gap:10px;
+}
+.chain-cap::after{content:"";flex:1;height:1px;background:rgba(255,255,255,.12)}
+.chain{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:0}
+.node{
+  border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.03);
+  padding:12px 15px;position:relative;
+}
+.node.is-focus{border-color:var(--accent-2);background:rgba(18,128,143,.13)}
+.node-kind{font-family:var(--f-mono);font-size:9.5px;letter-spacing:.14em;color:var(--accent-2);text-transform:uppercase}
+.node-name{font-family:var(--f-display);font-weight:700;font-size:14px;color:#EAF2F7;margin-top:3px;line-height:1.4}
+.node-meta{font-family:var(--f-mono);font-size:11px;color:#8FA5B7;margin-top:4px;word-break:break-all}
+.node-sub{list-style:none;margin:10px 0 0;padding:0;display:grid;gap:6px}
+.node-sub li{
+  font-family:var(--f-mono);font-size:11px;color:#B7C7D5;
+  border-left:2px solid var(--accent-2);padding:4px 0 4px 9px;background:rgba(255,255,255,.03);
+}
+.hop{display:flex;align-items:center;gap:9px;padding:7px 15px}
+.hop::before{content:"↓";font-family:var(--f-mono);color:var(--accent-2);font-size:13px}
+.hop span{font-family:var(--f-mono);font-size:10.5px;letter-spacing:.08em;color:#7E93A6}
+@media(min-width:940px){
+  .chain{flex-direction:row;align-items:stretch}
+  .node{flex:1 1 0;min-width:0}
+  .hop{flex-direction:column;padding:0 8px;justify-content:center;text-align:center;flex:none;width:88px}
+  .hop::before{content:"→"}
+  .hop span{font-size:9.5px;line-height:1.4}
+}
+.chain-note{
+  font-family:var(--f-mono);font-size:11px;color:#6E8496;margin:16px 0 0;
+  padding-bottom:46px;
+}
+
+/* ---------- endpoints ---------- */
+.ep-band{background:var(--accent);color:#fff;padding:34px 0}
+.ep-in{max-width:var(--maxw);margin:0 auto;padding:0 22px}
+.ep-head{
+  font-family:var(--f-mono);font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;
+  color:#A5DCE4;margin-bottom:16px;
+}
+.ep-grid{display:grid;gap:1px;background:rgba(255,255,255,.22);border:1px solid rgba(255,255,255,.22)}
+@media(min-width:820px){.ep-grid{grid-template-columns:repeat(3,1fr)}}
+.ep{background:var(--accent);padding:15px 17px;display:flex;flex-direction:column;gap:7px}
+.ep-label{font-family:var(--f-display);font-weight:700;font-size:12.5px;color:#CDECF0}
+.ep-url{
+  font-family:var(--f-mono);font-size:12.5px;color:#fff;word-break:break-all;line-height:1.5;
+  border:0;background:0;padding:0;
+}
+.ep-url:hover{color:#fff}
+.ep-copy{
+  align-self:flex-start;font-family:var(--f-mono);font-size:10px;letter-spacing:.1em;
+  background:rgba(255,255,255,.14);color:#DFF3F6;border:1px solid rgba(255,255,255,.28);
+  border-radius:2px;padding:3px 9px;cursor:pointer;transition:background .15s;
+}
+.ep-copy:hover{background:rgba(255,255,255,.28)}
+.ep-copy.done{background:#fff;color:var(--accent);border-color:#fff}
+.ep-note{font-family:var(--f-mono);font-size:11px;color:#A5DCE4;margin-top:14px}
+
+/* ---------- layout ---------- */
+.layout{max-width:var(--maxw);margin:0 auto;padding:0 22px;display:block}
+@media(min-width:1000px){
+  .layout{display:grid;grid-template-columns:214px 1fr;gap:52px;align-items:start}
+}
+.rail{display:none}
+@media(min-width:1000px){
+  .rail{
+    display:block;position:sticky;top:52px;max-height:calc(100vh - 52px);
+    overflow-y:auto;padding:38px 0 40px;
+  }
+}
+.rail-head{
+  font-family:var(--f-mono);font-size:9.5px;letter-spacing:.18em;text-transform:uppercase;
+  color:var(--ink-3);padding-bottom:10px;border-bottom:1px solid var(--rule);margin-bottom:12px;
+}
+.rail a{
+  display:flex;gap:9px;padding:5px 0;font-size:12.5px;color:var(--ink-2);border:0;line-height:1.5;
+}
+.rail a .n{font-family:var(--f-mono);font-size:10.5px;color:var(--ink-3);flex:none;width:16px;padding-top:2px}
+.rail a:hover{color:var(--accent)}
+.rail a.active{color:var(--accent);font-weight:700}
+.rail a.active .n{color:var(--accent-2)}
+
+main{padding:38px 0 90px;min-width:0}
+
+/* ---------- sections ---------- */
+.sec{margin-bottom:56px;scroll-margin-top:70px}
+.sec > h2{
+  font-family:var(--f-display);font-weight:900;font-size:clamp(20px,2.6vw,27px);
+  line-height:1.35;margin:0 0 22px;padding-bottom:14px;border-bottom:2px solid var(--ink);
+  display:flex;align-items:baseline;gap:13px;letter-spacing:-.005em;
+}
+.sec > h2 .num{
+  font-family:var(--f-mono);font-size:12px;font-weight:700;color:var(--accent-2);
+  letter-spacing:.06em;flex:none;
+}
+h3{
+  font-family:var(--f-display);font-weight:700;font-size:16.5px;margin:36px 0 12px;
+  padding-left:12px;border-left:4px solid var(--accent-2);line-height:1.5;
+}
+h4{font-family:var(--f-display);font-weight:700;font-size:14px;margin:24px 0 8px;color:var(--ink-2)}
+p{margin:0 0 14px}
+.sec ul,.sec ol{margin:0 0 16px;padding-left:1.35em}
+.sec li{margin-bottom:5px}
+code{
+  font-family:var(--f-mono);font-size:.88em;background:var(--surface);
+  border:1px solid var(--rule-soft);border-radius:3px;padding:1px 5px;color:#0A3F4A;
+  word-break:break-word;
+}
+strong{font-weight:700}
+.muted{color:var(--ink-3);font-size:13.5px}
+
+/* ---------- cards / callouts ---------- */
+.callout{
+  background:var(--surface);border:1px solid var(--rule);border-left:4px solid var(--ink-3);
+  padding:15px 18px;margin:0 0 20px;font-size:14px;
+}
+.callout .ct{
+  font-family:var(--f-mono);font-size:10px;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--ink-3);display:block;margin-bottom:6px;
+}
+.callout p:last-child{margin-bottom:0}
+.callout.warn{border-left-color:var(--changed);background:var(--changed-pale)}
+.callout.warn .ct{color:var(--changed)}
+.callout.note{border-left-color:var(--accent-2);background:var(--accent-pale)}
+.callout.note .ct{color:var(--accent)}
+.callout.tip{border-left-color:var(--new);background:var(--new-pale)}
+.callout.tip .ct{color:var(--new)}
+
+/* ---------- tables ---------- */
+.tblwrap{overflow-x:auto;margin:0 0 22px;border:1px solid var(--rule);background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:13.5px;min-width:430px}
+th,td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--rule-soft);vertical-align:top;line-height:1.7}
+thead th{
+  background:var(--surface-2);font-family:var(--f-mono);font-size:10.5px;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--ink-2);border-bottom:1px solid var(--rule);white-space:nowrap;
+}
+tbody tr:last-child td{border-bottom:0}
+td code,th code{background:var(--surface-2)}
+td.mono,th.mono{font-family:var(--f-mono);font-size:12px}
+.num-col{font-family:var(--f-mono);font-size:11.5px;color:var(--ink-3);width:34px}
+
+/* ---------- legend chips ---------- */
+.chip{
+  display:inline-block;font-family:var(--f-mono);font-size:10px;letter-spacing:.08em;
+  padding:2px 7px;border-radius:2px;border:1px solid;white-space:nowrap;line-height:1.6;
+}
+.chip.new{color:var(--new);background:var(--new-pale);border-color:#E6C79C}
+.chip.changed{color:var(--changed);background:var(--changed-pale);border-color:#E7B6C0}
+.chip.reuse{color:var(--reuse);background:var(--reuse-pale);border-color:#C6CFDA}
+.legend{display:flex;flex-wrap:wrap;gap:10px;margin:0 0 20px;align-items:center}
+
+/* ---------- code blocks ---------- */
+.cb{margin:0 0 22px;background:var(--code-bg);border:1px solid #1E2C3A;overflow:hidden}
+.cb-head{
+  display:flex;align-items:center;gap:10px;padding:8px 13px;border-bottom:1px solid #1E2C3A;
+  background:#0A121B;
+}
+.cb-lang{font-family:var(--f-mono);font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--code-dim)}
+.cb-title{font-family:var(--f-mono);font-size:11px;color:#93A9BB;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cb-copy{
+  font-family:var(--f-mono);font-size:10px;letter-spacing:.1em;background:transparent;
+  color:var(--code-dim);border:1px solid #24374A;border-radius:2px;padding:3px 9px;cursor:pointer;flex:none;
+}
+.cb-copy:hover{color:#DCE7EF;border-color:#3B5266}
+.cb-copy.done{color:#0C1620;background:var(--accent-2);border-color:var(--accent-2)}
+.cb pre{
+  margin:0;padding:15px 16px;overflow-x:auto;font-family:var(--f-mono);
+  font-size:12.5px;line-height:1.75;color:var(--code-ink);tab-size:2;
+}
+.cb pre .c{color:#5E7488}
+.cb pre .k{color:#7FD3C4}
+.cb pre .v{color:#E4C08A}
+
+/* ---------- panels ---------- */
+.panels{display:grid;gap:14px;margin:0 0 22px}
+@media(min-width:700px){.panels.two{grid-template-columns:1fr 1fr}}
+@media(min-width:700px){.panels.three{grid-template-columns:repeat(3,1fr)}}
+.panel{background:var(--surface);border:1px solid var(--rule);padding:15px 17px}
+.panel-h{
+  font-family:var(--f-mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--accent);margin-bottom:9px;padding-bottom:8px;border-bottom:1px solid var(--rule-soft);
+}
+.panel ul{margin:0;padding-left:1.1em;font-size:13px}
+.panel li{margin-bottom:4px}
+.kv{display:grid;gap:6px;font-size:13px}
+.kv div{display:flex;gap:10px;justify-content:space-between;align-items:baseline;flex-wrap:wrap}
+.kv dt{color:var(--ink-3);font-size:12px;flex:none}
+.kv dd{margin:0;font-family:var(--f-mono);font-size:11.5px;text-align:right;word-break:break-all}
+
+/* ---------- step list ---------- */
+.steps{counter-reset:st;list-style:none;padding:0;margin:0 0 8px}
+.step{margin-bottom:34px;position:relative}
+.step-h{
+  display:flex;align-items:baseline;gap:12px;margin-bottom:10px;
+  padding-bottom:9px;border-bottom:1px dashed var(--rule);
+}
+.step-n{
+  font-family:var(--f-mono);font-size:10.5px;font-weight:700;letter-spacing:.1em;
+  color:#fff;background:var(--ink);padding:3px 8px;border-radius:2px;flex:none;
+}
+.step-t{font-family:var(--f-display);font-weight:700;font-size:15.5px;line-height:1.5}
+
+/* ---------- footer ---------- */
+footer{background:var(--code-bg);color:#8FA5B7;padding:44px 0 56px;font-size:13px}
+.foot-in{max-width:var(--maxw);margin:0 auto;padding:0 22px}
+.foot-h{font-family:var(--f-mono);font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--code-dim);margin-bottom:16px}
+.foot-link{
+  display:block;border:1px solid rgba(255,255,255,.16);padding:16px 18px;margin-bottom:12px;color:#DCE7EF;
+}
+.foot-link:hover{border-color:var(--accent-2);background:rgba(18,128,143,.1);color:#fff}
+.foot-link .fl-k{font-family:var(--f-mono);font-size:9.5px;letter-spacing:.16em;color:var(--accent-2);text-transform:uppercase}
+.foot-link .fl-t{font-family:var(--f-display);font-weight:700;font-size:14.5px;margin-top:4px}
+.foot-meta{margin-top:24px;font-family:var(--f-mono);font-size:11px;color:#556B7E;line-height:1.9}
+
+@media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}html{scroll-behavior:auto}}
+@media print{
+  .topbar,.rail,.cb-copy,.ep-copy{display:none}
+  body{background:#fff}
+  .hero,footer{background:#fff;color:#000}
+  .cb{background:#f5f5f5;border-color:#ccc}
+  .cb pre{color:#111}
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-in">
+    <span class="tb-mark">01</span>
+    <span class="tb-title">ホテル検索MCPサーバー 構成とAWS構築手順書</span>
+    <span class="tb-spacer"></span>
+    <a class="tb-link" href="./hotel-info-mcp-chatgpt-widget-guide.html">続編：ChatGPTアプリ →</a>
+  </div>
+</div>
+
+<header class="hero">
+  <div class="hero-in">
+    <div class="eyebrow">
+      <span class="ser">手順書 01 / 親</span>
+      <span class="sep">—</span>
+      <span>hotel-info-mcp-server</span>
+      <span class="sep">—</span>
+      <span>要件70・71 / 設計70・71</span>
+    </div>
+    <h1>ホテル検索MCPサーバー<span class="thin">構成とAWS構築手順書</span></h1>
+    <p class="lede">東横INN公式ホテル検索APIを呼び出すMCPツールを1つだけ提供する、単独のMCPサーバー。既存の統合MCPサーバーとは別プロセス・別イメージで、AWS ECS (Fargate) 上で稼働する。LLMから function calling で呼ぶと、空室のあるホテル・部屋・プラン・料金が実データで返る。</p>
+
+    <dl class="datastrip">
+      <div><dt>作成日</dt><dd>2026-07-29</dd></div>
+      <div><dt>AWSアカウント</dt><dd>277019134452</dd></div>
+      <div><dt>リージョン</dt><dd>ap-northeast-1</dd></div>
+      <div><dt>提供ツール</dt><dd>search_hotels</dd></div>
+    </dl>
+
+    <div class="chain-wrap">
+      <div class="chain-cap">リクエスト経路</div>
+      <ol class="chain">
+        <li class="node">
+          <div class="node-kind">クライアント</div>
+          <div class="node-name">ChatGPT / MCPクライアント</div>
+          <div class="node-meta">インターネット・社内NW</div>
+        </li>
+        <li class="hop"><span>HTTPS :443</span></li>
+        <li class="node">
+          <div class="node-kind">CloudFront</div>
+          <div class="node-name">d3v8770g38r8os<wbr>.cloudfront.net</div>
+          <div class="node-meta">VPCオリジン / キャッシュ無効</div>
+        </li>
+        <li class="hop"><span>HTTP :80</span></li>
+        <li class="node">
+          <div class="node-kind">内部ALB</div>
+          <div class="node-name">hotel-info-mcp-alb</div>
+          <div class="node-meta">TG hotel-info-mcp-tg / target-type=ip</div>
+        </li>
+        <li class="hop"><span>HTTP :8000</span></li>
+        <li class="node is-focus">
+          <div class="node-kind">ECS Fargate タスク</div>
+          <div class="node-name">2コンテナ / 0.5vCPU・1GB</div>
+          <ul class="node-sub">
+            <li>① hotel-info-mcp-server : 8000</li>
+            <li>② search-service : 8001</li>
+          </ul>
+        </li>
+        <li class="hop"><span>NAT / VPN</span></li>
+        <li class="node">
+          <div class="node-kind">データソース</div>
+          <div class="node-name">東横INN公式API / thhtldb</div>
+          <div class="node-meta">API Gateway + WAF / MySQL 172.31.68.117</div>
+        </li>
+      </ol>
+      <p class="chain-note">同一タスク内の2コンテナは localhost で通信するため、Service Connect や内部ALBを介さない。</p>
+    </div>
+  </div>
+</header>
+
+<section class="ep-band">
+  <div class="ep-in">
+    <div class="ep-head">MCP 呼び出しURL</div>
+    <div class="ep-grid">
+      <div class="ep">
+        <span class="ep-label">インターネットから（HTTPS）</span>
+        <a class="ep-url" href="https://d3v8770g38r8os.cloudfront.net/mcp">https://d3v8770g38r8os.cloudfront.net/mcp</a>
+        <button class="ep-copy" data-copy="https://d3v8770g38r8os.cloudfront.net/mcp">URLをコピー</button>
+      </div>
+      <div class="ep">
+        <span class="ep-label">社内ネットワークから（HTTP）</span>
+        <span class="ep-url">http://internal-hotel-info-mcp-alb-1843477390.ap-northeast-1.elb.amazonaws.com/mcp</span>
+        <button class="ep-copy" data-copy="http://internal-hotel-info-mcp-alb-1843477390.ap-northeast-1.elb.amazonaws.com/mcp">URLをコピー</button>
+      </div>
+      <div class="ep">
+        <span class="ep-label">ローカル（Docker）</span>
+        <span class="ep-url">http://localhost:8011/mcp</span>
+        <button class="ep-copy" data-copy="http://localhost:8011/mcp">URLをコピー</button>
+      </div>
+    </div>
+    <p class="ep-note">いずれも MCP の Streamable HTTP エンドポイント。認証は不要（No authentication）。ChatGPT へは 設定 → コネクタ → カスタムコネクタを追加 で HTTPS の URL を登録する。</p>
+  </div>
+</section>
+
+<div class="layout">
+  <nav class="rail" aria-label="目次">
+    <div class="rail-head">目次</div>
+    <a href="#s1"><span class="n">1</span><span>概要</span></a>
+    <a href="#s2"><span class="n">2</span><span>接続URL</span></a>
+    <a href="#s3"><span class="n">3</span><span>システム構成</span></a>
+    <a href="#s4"><span class="n">4</span><span>ソースコード構成</span></a>
+    <a href="#s5"><span class="n">5</span><span>ローカルでの起動と確認</span></a>
+    <a href="#s6"><span class="n">6</span><span>AWS構築手順</span></a>
+    <a href="#s7"><span class="n">7</span><span>動作確認</span></a>
+    <a href="#s8"><span class="n">8</span><span>問題と対処</span></a>
+    <a href="#s9"><span class="n">9</span><span>運用</span></a>
+    <a href="#s10"><span class="n">10</span><span>関連ドキュメント</span></a>
+  </nav>
+
+  <main>
+
+    <div class="callout warn">
+      <span class="ct">警告 — 一時構成</span>
+      <p>HTTPS のエンドポイントはインターネットに公開されており、<strong>認証がない</strong>。URLを知っていれば誰でもホテル検索を実行できる。動作確認用の一時構成のため、確認が終わったら「<a href="#s9">9.2 停止・再開</a>」の手順で必ず停止すること。</p>
+    </div>
+
+    <!-- ============ 1 ============ -->
+    <section class="sec" id="s1">
+      <h2><span class="num">01</span><span>概要</span></h2>
+
+      <p>東横INN公式ホテル検索APIを呼び出すMCPツールを1つだけ提供する、単独のMCPサーバー。既存の統合MCPサーバー（<code>backend/mcp/server</code>）とは別プロセス・別イメージで動作し、AWS ECS (Fargate) 上で稼働する。LLM（Gemini等）から function calling でツールを呼び出すと、検索条件にもとづいて空室のあるホテル・部屋・プラン・料金が実データで返る。</p>
+
+      <h3>1.1 提供ツール</h3>
+      <div class="tblwrap">
+        <table>
+          <thead><tr><th>ツール名</th><th>説明</th><th>引数</th></tr></thead>
+          <tbody>
+            <tr>
+              <td class="mono">search_hotels</td>
+              <td>条件に合う空室ありホテル・部屋・プラン・料金を公式APIから検索する</td>
+              <td class="mono">criteria（必須）/ conversation_id / user_id</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>criteria に指定できる項目</h4>
+      <div class="tblwrap">
+        <table>
+          <thead><tr><th>キー</th><th>説明</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">destination</td><td>目的地・エリア名（例: 新宿, 大阪）</td></tr>
+            <tr><td class="mono">landmark</td><td>ランドマーク名（任意。座標を解決して距離順に並べる）</td></tr>
+            <tr><td class="mono">hotel_name</td><td>ホテル名の一部（任意。指定するとホテル名で優先検索する）</td></tr>
+            <tr><td class="mono">checkin_date</td><td>チェックイン日（YYYY-MM-DD）</td></tr>
+            <tr><td class="mono">nights / guests / rooms</td><td>宿泊数 / 人数 / 部屋数（既定はいずれも 1）</td></tr>
+            <tr><td class="mono">smoking</td><td><code>non_smoking</code> または <code>smoking</code>（任意）</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>1.2 公開エンドポイント</h3>
+      <div class="tblwrap">
+        <table>
+          <thead><tr><th>メソッド</th><th>パス</th><th>用途</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">GET</td><td class="mono">/health</td><td>ヘルスチェック（ALB / ECS のヘルスチェック先）</td></tr>
+            <tr><td class="mono">GET</td><td class="mono">/tools</td><td>ツール一覧（REST）</td></tr>
+            <tr><td class="mono">POST</td><td class="mono">/tools/call</td><td>ツール呼び出しプロキシ（REST）</td></tr>
+            <tr><td class="mono">POST</td><td class="mono">/mcp</td><td>MCP Streamable HTTP（ChatGPT など新しいMCPクライアント用）</td></tr>
+            <tr><td class="mono">GET</td><td class="mono">/legacy/sse</td><td>MCP SSE（従来のMCPクライアント互換）</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="muted">MCPクライアントから接続する場合は <code>/mcp</code>（Streamable HTTP）を使う。REST の <code>/tools</code> <code>/tools/call</code> は MCP を介さない簡易呼び出し用で、動作確認や自前のアプリから叩く場合に使う。</p>
+    </section>
+
+    <!-- ============ 2 ============ -->
+    <section class="sec" id="s2">
+      <h2><span class="num">02</span><span>接続URL</span></h2>
+
+      <h3>2.1 HTTPS（CloudFront）— インターネットから</h3>
+      <p>ChatGPT アプリ登録など、外部サービスから接続する場合はこちら。ベースURLは <code>https://d3v8770g38r8os.cloudfront.net</code>。</p>
+      <div class="tblwrap">
+        <table>
+          <thead><tr><th>用途</th><th>URL</th></tr></thead>
+          <tbody>
+            <tr><td>ヘルスチェック</td><td class="mono">https://d3v8770g38r8os.cloudfront.net/health</td></tr>
+            <tr><td>ChatGPT等への登録用（MCP）</td><td class="mono">https://d3v8770g38r8os.cloudfront.net/mcp</td></tr>
+            <tr><td>ツール一覧（REST）</td><td class="mono">https://d3v8770g38r8os.cloudfront.net/tools</td></tr>
+            <tr><td>ツール呼び出し（REST）</td><td class="mono">https://d3v8770g38r8os.cloudfront.net/tools/call</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout note">
+        <span class="ct">ブラウザで開いたときのエラーは正常</span>
+        <p><code>/mcp</code> をブラウザで直接開くと <code>{"code":-32600,"message":"Not Acceptable: Client must accept text/event-stream"}</code> が返るが、異常ではない。MCP の Streamable HTTP は <code>Accept: text/event-stream</code> を要求するのに対し、ブラウザは <code>Accept: text/html,...</code> を送るため仕様どおり拒否される。ChatGPT などのMCPクライアントは正しいヘッダーを送るので問題ない。ブラウザで疎通を見たい場合は <code>/health</code> か <code>/tools</code> を開くこと。</p>
+      </div>
+
+      <h3>2.2 HTTP（内部ALB）— 社内ネットワークから</h3>
+      <p>ベースURLは <code>http://internal-hotel-info-mcp-alb-1843477390.ap-northeast-1.elb.amazonaws.com</code>。内部ALBのため、社内ネットワークまたはVPC内からのみ到達できる。<code>/health</code> <code>/tools</code> <code>/tools/call</code> <code>/mcp</code> が利用できる。</p>
+
+      <div class="cb">
+        <div class="cb-head"><span class="cb-lang">bash</span><span class="cb-title">内部ALB 経由の呼び出し例</span><button class="cb-copy">コピー</button></div>
+<pre><code>ALB=internal-hotel-info-mcp-alb-1843477390.ap-northeast-1.elb.amazonaws.com
+
+curl http://$ALB/health
+curl http://$ALB/tools
+
+cat &gt; req.json &lt;&lt; 'EOF'
+{"name":"search_hotels","arguments":{"criteria":{"destination":"大阪","checkin_date":"2026-08-20","nights":1}}}
+EOF
+
+curl -X POST http://$ALB/tools/call -H "Content-Type: application/json" --data-binary @req.json</code></pre>
+      </div>
+
+      <h3>2.3 ローカル（Docker）</h3>
+      <p><code>http://localhost:8011</code>。<code>/health</code> <code>/tools</code> <code>/tools/call</code> <code>/mcp</code> <code>/legacy/sse</code> の構成は ECS と同じ。ホストポートは環境変数 <code>HOTEL_INFO_MCP_PORT</code> で変更できる（既定 8011）。</p>
+
+      <h3>2.4 接続時の注意点</h3>
+      <ul>
+        <li>CloudFront（HTTPS）はインターネット公開・認証なし。動作確認用の一時構成であり、確認後は停止すること</li>
+        <li>内部ALB（HTTP）は社内ネットワークまたは VPC 内からのみ到達できる</li>
+        <li>独自ドメインは使っていない。CloudFront 既定の <code>*.cloudfront.net</code> 証明書を利用しているため、ACM 証明書の取得や Route 53 の設定は不要</li>
+        <li>日本語を含むリクエストはシェルの引数エンコーディングで壊れることがあるため、JSON はファイルに書いて <code>--data-binary @file</code> で渡すこと</li>
+      </ul>
+    </section>
+
+    <!-- ============ 3 ============ -->
+    <section class="sec" id="s3">
+      <h2><span class="num">03</span><span>システム構成</span></h2>
+
+      <h3>3.1 全体の流れ</h3>
+      <div class="cb">
+        <div class="cb-head"><span class="cb-lang">flow</span><span class="cb-title">発言 → LLM → MCP → 実データ → 回答</span><button class="cb-copy">コピー</button></div>
+<pre><code>ユーザー発言
+  │
+  ▼
+LLM（Gemini 2.5 Flash）          … function calling で criteria を組み立てる
+  │ search_hotels(criteria)
+  ▼
+hotel-info-mcp-server : 8000      … ECSタスク内コンテナ①
+  │ POST http://localhost:8001/search/hotels
+  ▼
+search-service : 8001             … ECSタスク内コンテナ②（USE_STUB_DATA=false）
+  ├──&gt; thhtldb (MySQL 172.31.68.117:3306)  … エリア・座標からホテルコードを最大50件選定
+  └──&gt; 東横INN公式API                        … 空室・料金・部屋タイプを取得
+  │
+  ▼
+LLM に検索結果を戻して最終回答を生成</code></pre>
+      </div>
+      <p class="muted">MCPサーバーは search-service に依存するため、1つのタスク定義に2コンテナを載せる。同一タスク内のコンテナは localhost で通信できるため、Service Connect や内部ALBを介さずに済む。</p>
+
+      <h3>3.2 AWS構成図</h3>
+      <div class="legend">
+        <span class="chip new">新規作成</span>
+        <span class="chip changed">既存（変更あり）</span>
+        <span class="chip reuse">既存（流用）</span>
+      </div>
+
+      <div class="panels two">
+        <div class="panel">
+          <div class="panel-h">VPC内 — dev-commapi-vpc (172.31.128.0/19)</div>
+          <ul>
+            <li><span class="chip new">新規</span> CloudFront ディストリビューション / VPCオリジン</li>
+            <li><span class="chip new">新規</span> 内部ALB <code>hotel-info-mcp-alb : 80</code></li>
+            <li><span class="chip new">新規</span> ECS Fargate タスク（0.5vCPU・1GB）<br>コンテナ① hotel-info-mcp-server : 8000<br>コンテナ② search-service : 8001</li>
+            <li><span class="chip reuse">流用</span> NATゲートウェイ <code>35.79.200.36</code></li>
+            <li><span class="chip reuse">流用</span> VPNゲートウェイ（172.31.64.0/19 向け）</li>
+          </ul>
+        </div>
+        <div class="panel">
+          <div class="panel-h">支援サービス（VPC外）／外部</div>
+          <ul>
+            <li><span class="chip new">新規</span> Amazon ECR ×2（mcp-server / search-service）</li>
+            <li><span class="chip new">新規</span> Secrets Manager <code>hotel-info-mcp</code></li>
+            <li><span class="chip new">新規</span> CloudWatch Logs <code>/ecs/hotel-info-mcp-server</code>（保持30日）</li>
+            <li><span class="chip new">新規</span> IAM ロール ×2（タスク実行用 / タスク用）</li>
+            <li><span class="chip changed">変更</span> 東横INN公式API の WAF IP許可リストに <code>35.79.200.36/32</code> を追加</li>
+            <li><span class="chip reuse">流用</span> thhtldb (MySQL) <code>172.31.68.117:3306</code></li>
+          </ul>
+        </div>
+      </div>
+      <p class="muted">サブネットは <code>subnet-0e01338af438b23d6</code> (1a) / <code>subnet-0e87bd5170db46ae1</code> (1d)。いずれもプライベート（<code>assignPublicIp=DISABLED</code>）。MCPサーバーは DB・公式APIの接続情報を持たず、いずれも search-service 側が担当する。</p>
+
+      <h3>3.3 ECS 構成</h3>
+      <div class="cb">
+        <div class="cb-head"><span class="cb-lang">topology</span><span class="cb-title">CloudFront / 内部ALB → ECSタスク</span><button class="cb-copy">コピー</button></div>
+<pre><code>インターネット（ChatGPT等）        社内ネットワーク
+  │ HTTPS :443                      │ HTTP :80
+  ▼                                 │
+CloudFront d3v8770g38r8os.cloudfront.net
+  │ VPCオリジン（キャッシュ無効）    │
+  ▼                                 ▼
+内部ALB hotel-info-mcp-alb
+  │ HTTP :8000（ターゲットグループ hotel-info-mcp-tg / target-type=ip）
+  ▼
+ECSタスク (Fargate / awsvpc / 0.5vCPU・1GB)
+├── hotel-info-mcp-server : 8000   SEARCH_SERVICE_URL=http://localhost:8001
+└── search-service        : 8001   USE_STUB_DATA=false
+     ├──&gt; thhtldb（VPNゲートウェイ経由）
+     └──&gt; 公式API（NATゲートウェイ経由）</code></pre>
+      </div>
+      <ul>
+        <li>CloudFront は ChatGPT アプリ登録の動作確認のために追加した経路。独自ドメインを使わずに HTTPS を用意するため、CloudFront 既定の <code>*.cloudfront.net</code> 証明書を利用している</li>
+        <li>MCP の Streamable HTTP / SSE はストリーミング通信のため、キャッシュは無効（CachingDisabled）、リクエストは全ヘッダー転送（AllViewer）にしている</li>
+        <li>MCPコンテナは search-service の <code>dependsOn: HEALTHY</code> を待って起動する</li>
+        <li>ログは両コンテナとも <code>/ecs/hotel-info-mcp-server</code>（ストリーム接頭辞 <code>mcp</code> / <code>search</code>）</li>
+      </ul>
+
+      <h3>3.4 ネットワーク</h3>
+      <div class="tblwrap">
+        <table>
+          <thead><tr><th>項目</th><th>値</th></tr></thead>
+          <tbody>
+            <tr><td>VPC</td><td class="mono">vpc-0bcd30e71b3160151（dev-commapi-vpc / 172.31.128.0/19）</td></tr>
+            <tr><td>サブネット</td><td class="mono">subnet-0e01338af438b23d6 (1a) / subnet-0e87bd5170db46ae1 (1d)</td></tr>
+            <tr><td>ルートテーブル</td><td class="mono">rtb-06268375bb33f708b</td></tr>
+            <tr><td>thhtldb への経路</td><td class="mono">172.31.64.0/19 → VPNゲートウェイ vgw-05d0f9ef26d4e3363</td></tr>
+            <tr><td>公式API・ECRへの経路</td><td class="mono">0.0.0.0/0 → NATゲートウェイ nat-03d0b75b65948d4eb（グローバルIP 35.79.200.36）</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>3.5 AWSリソース一覧</h3>
+
+      <h4>新規作成したリソース（15件）</h4>
+      <p class="muted">すべて今回のプロジェクト専用に作成したもの。削除しても既存システムへの影響はない。</p>
+      <div class="tblwrap">
+        <table>
+          <thead><tr><th class="num-col">#</th><th>サービス</th><th>種別</th><th>名前 / ID</th></tr></thead>
+          <tbody>
+            <tr><td class="num-col">1</td><td>ECR</td><td>リポジトリ</td><td class="mono">hotel-info-mcp-server</td></tr>
+            <tr><td class="num-col">2</td><td>ECR</td><td>リポジトリ</td><td class="mono">hotel-info-search-service</td></tr>
+            <tr><td class="num-col">3</td><td>Secrets Manager</td><td>シークレット</td><td class="mono">hotel-info-mcp（hotel-info-mcp-ON4fnx）</td></tr>
+            <tr><td class="num-col">4</td><td>IAM</td><td>ロール（タスク実行用）</td><td class="mono">hotel-info-mcp-execution-role</td></tr>
+            <tr><td class="num-col">5</td><td>IAM</td><td>ロール（タスク用・ECS Exec）</td><td class="mono">hotel-info-mcp-task-role</td></tr>
+            <tr><td class="num-col">6</td><td>CloudWatch Logs</td><td>ロググループ</td><td class="mono">/ecs/hotel-info-mcp-server（保持30日）</td></tr>
+            <tr><td class="num-col">7</td><td>EC2</td><td>セキュリティグループ（タスク用）</td><td class="mono">hotel-info-mcp-sg（sg-0e9276e4131159dfa）</td></tr>
+            <tr><td class="num-col">8</td><td>EC2</td><td>セキュリティグループ（ALB用）</td><td class="mono">hotel-info-mcp-alb-sg（sg-09fb06b23b250f8ab）</td></tr>
+            <tr><td class="num-col">9</td><td>ECS</td><td>クラスタ</td><td class="mono">hotel-info-mcp-cluster</td></tr>
+            <tr><td class="num-col">10</td><td>ECS</td><td>タスク定義</td><td class="mono">hotel-info-mcp-server（リビジョン1〜3）</td></tr>
+            <tr><td class="num-col">11</td><td>ECS</td><td>サービス</td><td class="mono">hotel-info-mcp-server（Fargate / desired 1）</td></tr>
+            <tr><td class="num-col">12</td><td>ELB</td><td>内部ALB</td><td class="mono">hotel-info-mcp-alb</td></tr>
+            <tr><td class="num-col">13</td><td>ELB</td><td>ターゲットグループ</td><td class="mono">hotel-info-mcp-tg</td></tr>
+            <tr><td class="num-col">14</td><td>CloudFront</td><td>VPCオリジン</td><td class="mono">hotel-info-mcp-vpc-origin（vo_CUC5eFXSAKHB8bxL3PQ9Gw）</td></tr>
+            <tr><td class="num-col">15</td><td>CloudFront</td><td>ディストリビューション</td><td class="mono">E69XO759PMJOU（d3v8770g38r8os.cloudfront.net）</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>タスク定義のリビジョン履歴</h4>
+      <div class="tblwrap">
+        <table>
+          <thead><tr><th>リビジョン</th><th>変更内容</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">:1</td><td>初版。ロググループ自動作成が権限不足で起動失敗</td></tr>
+            <tr><td class="mono">:2</td><td><code>awslogs-create-group</code> を削除（ロググループは事前作成に変更）</td></tr>
+            <tr><td class="mono">:3</td><td><code>taskRoleArn</code> を追加（ECS Exec 用）。現行</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>既存リソースへの変更（1件）</h4>
+      <div class="callout warn">
+        <span class="ct">共有リソース — 取り扱い注意</span>
+        <p>WAF (WAFv2) の IPセット <code>dev-commapi-wafipsets-ToyokoInnHpApi</code>（<code>6fc9e61b-0bfa-4058-9ecc-eedb9ae02d95</code>）の許可IPに <code>35.79.200.36/32</code> を追加した（45件→46件）。ECSのNATゲートウェイIPが未登録で、公式APIが 403 を返していたため。</p>
+        <p>このIPセットは API Gateway <code>dev-commapi-agw-api-ToyokoInnHpApi2-public</code> に紐づく WAF <code>dev-commapi-wafacls-ToyokoInnHpApi</code> が参照しており、公式APIを利用する<strong>他システムにも影響する共有設定</strong>である。本構成を廃止する際は、追加した <code>35.79.200.36/32</code> を削除すること。</p>
+      </div>
+
+      <h4>既存リソースで流用したもの（変更なし）</h4>
+      <div class="tblwrap">
+        <table>
+          <thead><tr><th>サービス</th><th>対象</th><th>用途</th></tr></thead>
+          <tbody>
+            <tr><td>VPC</td><td class="mono">vpc-0bcd30e71b3160151（dev-commapi-vpc）</td><td>ECSタスク・ALB・VPCオリジンの配置先</td></tr>
+            <tr><td>サブネット</td><td class="mono">subnet-0e01338af438b23d6 / subnet-0e87bd5170db46ae1</td><td>同上</td></tr>
+            <tr><td>NATゲートウェイ</td><td class="mono">nat-03d0b75b65948d4eb</td><td>公式API・ECRへのアウトバウンド</td></tr>
+            <tr><td>VPNゲートウェイ</td><td class="mono">vgw-05d0f9ef26d4e3363</td><td>thhtldb（172.31.64.0/19）への到達</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>使用しなかったもの</h4>
+      <div class="tblwrap">
+        <table>
+          <thead><tr><th>検討したもの</th><th>不採用の理由</th></tr></thead>
+          <tbody>
+            <tr><td>ACM証明書 <code>*.toyoko-inn.co.jp</code></td><td>既存ドメインを使わない方針のため。CloudFront既定証明書で代替した</td></tr>
+            <tr><td>Route 53 プライベートホストゾーン</td><td>同上。独自ドメインが不要になったため作成していない</td></tr>
+            <tr><td>API Gateway + VPC Link</td><td>統合タイムアウトが最大30秒で、MCPのストリーミング通信に不向きなため</td></tr>
+            <tr><td>RDS（appdb）</td><td>要件71で公式API方式に変更し、appdbが不要になったため</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ============ 4 ============ -->
+    <section class="sec" id="s4">
+      <h2><span class="num">04</span><span>ソースコード構成</span></h2>
+
+      <div class="cb">
+        <div class="cb-head"><span class="cb-lang">tree</span><span class="cb-title">reservation_platform/backend/mcp/hotel_info_server/</span><button class="cb-copy">コピー</button></div>
+<pre><code>hotel_info_server/
+├── app/
+│   └── main.py                     # FastMCP + FastAPI（ツール1つ）
+├── requirements.txt                # 最小依存（fastapi/uvicorn/httpx/pydantic/mcp）
+├── Dockerfile                      # このディレクトリのみで単独ビルド
+├── README.md                       # 使い方
+├── deploy/
+│   ├── ecs-task-definition.json    # Fargate タスク定義（2コンテナ）
+│   └── deploy.ps1                  # ECR作成→ビルド→push→タスク定義登録
+└── docs/
+    ├── ホテル検索MCPサーバー_構成とAWS構築手順書.md
+    └── ホテル検索MCPサーバー_構成とAWS構築手順書.pdf</code></pre>
+      </div>
+      <p class="muted">search-service 側は既存の reservation_platform イメージをそのまま使い、タスク定義の <code>workingDirectory</code> と <code>command</code> で起動ポートを 8001 に変えている。</p>
+
+      <h3>4.1 環境変数</h3>
+      <div class="panels two">
+        <div class="panel">
+          <div class="panel-h">MCPサーバー</div>
+          <dl class="kv">
+            <div><dt>SEARCH_SERVICE_URL</dt><dd>http://localhost:8001</dd></div>
+            <div><dt>MCP_HTTP_TIMEOUT_SECONDS</dt><dd>60</dd></div>
+          </dl>
+          <p class="muted" style="margin-top:10px;margin-bottom:0">ホテル検索APIの接続先 / 下流APIのHTTPタイムアウト秒数。</p>
+        </div>
+        <div class="panel">
+          <div class="panel-h">search-service</div>
+          <dl class="kv">
+            <div><dt>USE_STUB_DATA=false</dt><dd>environment（本番モード）</dd></div>
+            <div><dt>OFFICIAL_API_URL</dt><dd>environment</dd></div>
+            <div><dt>THHTLDB_HOST / PORT / DB / USER</dt><dd>environment</dd></div>
+            <div><dt>OFFICIAL_API_KEY / THHTLDB_PASS</dt><dd>Secrets Manager</dd></div>
+          </dl>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ 5 ============ -->
+    <section class="sec" id="s5">
+      <h2><span class="num">05</span><span>ローカルでの起動と確認</span></h2>
+
+      <div class="cb">
+        <div class="cb-head"><span class="cb-lang">bash</span><span class="cb-title">起動（プロジェクトルートで実行）</span><button class="cb-copy">コピー</button></div>
+<pre><code>docker compose -f docker-compose.ai-reservation.yml up --build --pull never --no-deps -d search-service hotel-info-mcp-server</code></pre>
+      </div>
+
+      <div class="cb">
+        <div class="cb-head"><span class="cb-lang">bash</span><span class="cb-title">疎通確認とツール呼び出し</span><button class="cb-copy">コピー</button></div>
+<pre><code>curl http://localhost:8011/health
+curl http://localhost:8011/tools
+
+# ツール呼び出し（日本語を含むため JSON はファイル経由で渡す）
+cat &gt; req.json &lt;&lt; 'EOF'
+{"name":"search_hotels","arguments":{"criteria":{"destination":"大阪","checkin_date":"2026-08-20","nights":1,"guests":1,"rooms":1}}}
+EOF
+
+curl -X POST http://localhost:8011/tools/call -H "Content-Type: application/json" --data-binary @req.json</code></pre>
+      </div>
+
+      <div class="cb">
+        <div class="cb-head"><span class="cb-lang">bash</span><span class="cb-title">MCP（Streamable HTTP）の疎通確認</span><button class="cb-copy">コピー</button></div>
+<pre><code>curl -X POST http://localhost:8011/mcp/ \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"t","version":"1"}}}'</code></pre>
+      </div>
+      <p class="muted">ホストポートは <code>HOTEL_INFO_MCP_PORT</code>（既定 8011）。</p>
+    </section>
+
+    <!-- ============ 6 ============ -->
+    <section class="sec" id="s6">
+      <h2><span class="num">06</span><span>AWS構築手順（実行したコマンド）</span></h2>
+      <p>以下は実際に実行したコマンドを順番どおりに記載したもの。すべて <code>--region ap-northeast-1</code> で実行する。</p>
+
+      <ol class="steps">
+
+        <li class="step">
+          <div class="step-h"><span class="step-n">手順 0</span><span class="step-t">前提</span></div>
+          <ul>
+            <li>AWS CLI v2 が設定済みで、ap-northeast-1 に対する操作権限があること</li>
+            <li>Docker Desktop が起動していること</li>
+            <li>Fargate は linux/amd64 のため、ビルド時に <code>--platform linux/amd64</code> が必須</li>
+          </ul>
+        </li>
+
+        <li class="step">
+          <div class="step-h"><span class="step-n">手順 1</span><span class="step-t">Secrets Manager にシークレットを作成</span></div>
+          <p>公式APIキーと thhtldb のパスワードを登録する。</p>
+          <div class="cb">
+            <div class="cb-head"><span class="cb-lang">bash</span><span class="cb-title">create-secret</span><button class="cb-copy">コピー</button></div>
+<pre><code># .env から公式APIキーを取り出し、JSON を組み立てて登録する
+KEY=$(grep "^OFFICIAL_API_KEY=" .env | cut -d= -f2- | tr -d "'\"")
+python -c "
+import json,sys
+open(sys.argv[2],'w').write(json.dumps({'official_api_key': sys.argv[1], 'thhtldb_pass': 'kaizen'}))
+" "$KEY" secret.json
+
+aws secretsmanager create-secret \
+  --name hotel-info-mcp \
+  --description "hotel-info-mcp-server secrets" \
+  --secret-string file://secret.json \
+  --region ap-northeast-1
+
+rm -f secret.json</code></pre>
+          </div>
+          <p class="muted">出力された ARN（例: <code>arn:aws:secretsmanager:ap-northeast-1:277019134452:secret:hotel-info-mcp-ON4fnx</code>）をタスク定義に設定する。末尾のランダム6文字を含めた名前が必要。</p>
+        </li>
+
+        <li class="step">
+          <div class="step-h"><span class="step-n">手順 2</span><span class="step-t">IAM 実行ロールを作成</span></div>
+          <p>ECR からのイメージ取得、CloudWatch へのログ出力、シークレット読み取りを行うロール。</p>
+          <div class="cb">
+            <div class="cb-head"><span class="cb-lang">bash</span><span class="cb-title">hotel-info-mcp-execution-role</span><button class="cb-copy">コピー</button></div>
+<pre><code># 信頼ポリシー
+cat &gt; trust.json &lt;&lt; 'EOF'
+{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"Service":"ecs-tasks.amazonaws.com"},"Action":"sts:AssumeRole"}]}
+EOF
+
+# ロール作成（description に日本語は使えない。ASCIIのみ）
+aws iam create-role \
+  --role-name hotel-info-mcp-execution-role \
+  --description "ECS task execution role for hotel-info-mcp-server" \
+  --assume-role-policy-document file://trust.json \
+  --region ap-northeast-1
+
+# AWS管理ポリシーをアタッチ
+aws iam attach-role-policy \
+  --role-name hotel-info-mcp-execution-role \
+  --policy-arn arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+
+# シークレット読み取り権限を追加
+cat &gt; secret-policy.json &lt;&lt; 'EOF'
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": "secretsmanager:GetSecretValue",
+      "Resource": "arn:aws:secretsmanager:ap-northeast-1:277019134452:secret:hotel-info-mcp-*"
+    }
+  ]
+}
+EOF
+
+aws iam put-role-policy \
+  --role-name hotel-info-mcp-execution-role \
+  --policy-name hotel-info-mcp-secrets \
+  --policy-document file://secret-policy.json</code></pre>
+          </div>
+        </li>
+
+        <li class="step">
+          <div class="step-h"><span class="step-n">手順 3</span><span class="step-t">IAM タスクロールを作成（ECS Exec 用）</span></div>
+          <p>コンテナ内でコマンドを実行できるようにするロール。必須ではない。</p>
+          <div class="cb">
+            <div class="cb-head"><span class="cb-lang">bash</span><span class="cb-title">hotel-info-mcp-task-role</span><button class="cb-copy">コピー</button></div>
+<pre><code>cat &gt; exec-policy.json &lt;&lt; 'EOF'
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "ssmmessages:CreateControlChannel",
+        "ssmmessages:CreateDataChannel",
+        "ssmmessages:OpenControlChannel",
+        "ssmmessages:OpenDataChannel"
+      ],
+      "Resource": "*"
+    }
+  ]
+}
+EOF
+
+aws iam create-role \
+  --role-name hotel-info-mcp-task-role \
+  --description "ECS task role for hotel-info-mcp-server (ECS Exec)" \
+  --assume-role-policy-document file://trust.json \
+  --region ap-northeast-1
+
+aws iam put-role-policy \
+  --role-name hotel-info-mcp-task-role \
+  --policy-name ecs-exec \
+  --policy-document file://exec-policy.json</code></pre>
+          </div>
+        </li>
+
+        <li class="step">
+          <div class="step-h"><span class="step-n">手順 4</span><span class="step-t">CloudWatch ロググループを作成</span></div>
+          <div class="callout note">
+            <span class="ct">先に作成しておくこと</span>
+            <p><code>AmazonECSTaskExecutionRolePolicy</code> には <code>logs:CreateLogGroup</code> が含まれないため、タスク定義側の自動作成（<code>awslogs-create-group: true</code>）は失敗する。</p>
+          </div>
+          <div class="cb">
+            <div class="cb-head"><span class="cb-lang">powershell</span><span class="cb-title">Git Bash だとパス変換で "/ecs/..." が壊れる</span><button class="cb-copy">コピー</button></div>
+<pre><code>aws logs create-log-group --log-group-name "/ecs/hotel-info-mcp-server" --region ap-northeast-1
+aws logs put-retention-policy --log-group-name "/ecs/hotel-info-mcp-server" --retention-in-days 30 --region ap-northeast-1</code></pre>
+          </div>
+        </li>
+
+        <li class="step">
+          <div class="step-h"><span class="step-n">手順 5</span><span class="step-t">セキュリティグループを作成</span></div>
+          <div class="cb">
+            <div class="cb-head"><span class="cb-lang">bash</span><span class="cb-title">タスク用SG</span><button class="cb-copy">コピー</button></div>
+<pre><code>aws ec2 create-security-group \
+  --group-name hotel-info-mcp-sg \
+  --description "SG for hotel-info-mcp-server ECS task" \
+  --vpc-id vpc-0bcd30e71b3160151 \
+  --region ap-northeast-1
+# → sg-0e9276e4131159dfa
+
+# VPC内から8000/tcpを許可
+aws ec2 authorize-security-group-ingress \
+  --group-id sg-0e9276e4131159dfa \
+  --protocol tcp --port 8000 --cidr 172.31.128.0/19 \
+  --region ap-northeast-1</code></pre>
+          </div>
+        </li>
+
+        <li class="step">
+          <div class="step-h"><span class="step-n">手順 6</span><span class="step-t">ECS クラスタを作成</span></div>
+          <div class="cb">
+            <div class="cb-head"><span class="cb-lang">bash</span><span class="cb-title">create-cluster</span><button class="cb-copy">コピー</button></div>
+<pre><code>aws ecs create-cluster --cluster-name hotel-info-mcp-cluster --region ap-northeast-1</code></pre>
+          </div>
+        </li>
+
+        <li class="step">
+          <div class="step-h"><span class="step-n">手順 7</span><span class="step-t">タスク定義を編集</span></div>
+          <p><code>deploy/ecs-task-definition.json</code> の以下を実際の値にする。</p>
+          <ul>
+            <li><code>executionRoleArn</code> … <code>arn:aws:iam::277019134452:role/hotel-info-mcp-execution-role</code></li>
+            <li><code>taskRoleArn</code> … <code>arn:aws:iam::277019134452:role/hotel-info-mcp-task-role</code></li>
+            <li><code>secrets[].valueFrom</code> の <code>&lt;SECRET_NAME&gt;</code> … 手順1で得た <code>hotel-info-mcp-ON4fnx</code></li>
+            <li><code>logConfiguration.options</code> から <code>awslogs-create-group</code> を削除</li>
+          </ul>
+        </li>
+
+        <li class="step">
+          <div class="step-h"><span class="step-n">手順 8</span><span class="step-t">イメージのビルドとプッシュ、タスク定義の登録</span></div>
+          <p><code>deploy/deploy.ps1</code> が ECRリポジトリ作成 → ログイン → amd64ビルド → プッシュ → タスク定義登録 までをまとめて実行する。</p>
+          <div class="cb">
+            <div class="cb-head"><span class="cb-lang">powershell</span><span class="cb-title">リポジトリルートで実行する</span><button class="cb-copy">コピー</button></div>
+<pre><code>./reservation_platform/backend/mcp/hotel_info_server/deploy/deploy.ps1
+
+# イメージのプッシュのみ行う場合
+./reservation_platform/backend/mcp/hotel_info_server/deploy/deploy.ps1 -SkipTaskDef</code></pre>
+          </div>
+          <p>スクリプトが行っている内容を手動で実行する場合:</p>
+          <div class="cb">
+            <div class="cb-head"><span class="cb-lang">bash</span><span class="cb-title">ECR作成 → ログイン → ビルド → プッシュ → タスク定義登録</span><button class="cb-copy">コピー</button></div>
+<pre><code># ECRリポジトリを作成
+aws ecr create-repository --repository-name hotel-info-mcp-server --region ap-northeast-1 --image-scanning-configuration scanOnPush=true
+aws ecr create-repository --repository-name hotel-info-search-service --region ap-northeast-1 --image-scanning-configuration scanOnPush=true
+
+# ECRにログイン（Bash の場合）
+aws ecr get-login-password --region ap-northeast-1 \
+  | docker login --username AWS --password-stdin 277019134452.dkr.ecr.ap-northeast-1.amazonaws.com
+
+# ビルドしてプッシュ（Fargate は linux/amd64）
+docker build --platform linux/amd64 \
+  -t 277019134452.dkr.ecr.ap-northeast-1.amazonaws.com/hotel-info-mcp-server:latest \
+  reservation_platform/backend/mcp/hotel_info_server
+docker push 277019134452.dkr.ecr.ap-northeast-1.amazonaws.com/hotel-info-mcp-server:latest
+
+docker build --platform linux/amd64 \
+  -t 277019134452.dkr.ecr.ap-northeast-1.amazonaws.com/hotel-info-search-service:latest \
+  reservation_platform
+docker push 277019134452.dkr.ecr.ap-northeast-1.amazonaws.com/hotel-info-search-service:latest
+
+# タスク定義を登録
+aws ecs register-task-definition \
+  --cli-input-json file://reservation_platform/backend/mcp/hotel_info_server/deploy/ecs-task-definition.json \
+  --region ap-northeast-1</code></pre>
+          </div>
+          <div class="callout tip">
+            <span class="ct">注意 — Windows PowerShell 5.1</span>
+            <p><code>aws ecr get-login-password | docker login --password-stdin</code> はパイプでトークンが壊れ、400 Bad Request になる。<code>deploy.ps1</code> では一時ファイルに書き出して cmd のリダイレクトで stdin に流す方式にしている。</p>
+          </div>
+        </li>
+
+        <li class="step">
+          <div class="step-h"><span class="step-n">手順 9</span><span class="step-t">ECS サービスを作成</span></div>
+          <div class="cb">
+            <div class="cb-head"><span class="cb-lang">bash</span><span class="cb-title">create-service</span><button class="cb-copy">コピー</button></div>
+<pre><code>aws ecs create-service \
+  --cluster hotel-info-mcp-cluster \
+  --service-name hotel-info-mcp-server \
+  --task-definition hotel-info-mcp-server \
+  --desired-count 1 \
+  --launch-type FARGATE \
+  --network-configuration "awsvpcConfiguration={subnets=[subnet-0e01338af438b23d6,subnet-0e87bd5170db46ae1],securityGroups=[sg-0e9276e4131159dfa],assignPublicIp=DISABLED}" \
+  --region ap-northeast-1
+
+# ECS Exec を使う場合
+aws ecs update-service --cluster hotel-info-mcp-cluster --service hotel-info-mcp-server \
+  --task-definition hotel-info-mcp-server --enable-execute-command --force-new-deployment \
+  --region ap-northeast-1</code></pre>
+          </div>
+          <div class="cb">
+            <div class="cb-head"><span class="cb-lang">bash</span><span class="cb-title">起動確認</span><button class="cb-copy">コピー</button></div>
+<pre><code>aws ecs describe-services --cluster hotel-info-mcp-cluster --services hotel-info-mcp-server \
+  --region ap-northeast-1 --query 'services[0].{running:runningCount,pending:pendingCount}'
+
+# タスクの健全性を見る
+TASK=$(aws ecs list-tasks --cluster hotel-info-mcp-cluster --region ap-northeast-1 --query 'taskArns[0]' --output text)
+aws ecs describe-tasks --cluster hotel-info-mcp-cluster --tasks $TASK --region ap-northeast-1 \
+  --query 'tasks[0].{last:lastStatus,health:healthStatus,c:containers[].{n:name,s:lastStatus,h:healthStatus}}'</code></pre>
+          </div>
+          <p class="muted"><code>lastStatus=RUNNING</code> かつ <code>healthStatus=HEALTHY</code> になれば成功。</p>
+        </li>
+
+        <li class="step">
+          <div class="step-h"><span class="step-n">手順 10</span><span class="step-t">内部ALB を作成して公開</span></div>
+          <div class="cb">
+            <div class="cb-head"><span class="cb-lang">bash</span><span class="cb-title">ALB用SG・ALB本体</span><button class="cb-copy">コピー</button></div>
+<pre><code># ALB用SGを作成
+aws ec2 create-security-group \
+  --group-name hotel-info-mcp-alb-sg \
+  --description "SG for hotel-info-mcp-server internal ALB" \
+  --vpc-id vpc-0bcd30e71b3160151 --region ap-northeast-1
+# → sg-09fb06b23b250f8ab
+
+# 社内ネットワークから80/tcpを許可
+aws ec2 authorize-security-group-ingress --group-id sg-09fb06b23b250f8ab \
+  --protocol tcp --port 80 --cidr 172.31.0.0/16 --region ap-northeast-1
+aws ec2 authorize-security-group-ingress --group-id sg-09fb06b23b250f8ab \
+  --protocol tcp --port 80 --cidr 192.168.0.0/16 --region ap-northeast-1
+
+# ALBからタスクへの8000/tcpを許可
+aws ec2 authorize-security-group-ingress --group-id sg-0e9276e4131159dfa \
+  --protocol tcp --port 8000 --source-group sg-09fb06b23b250f8ab --region ap-northeast-1
+
+# 内部ALBを作成（全サブネットがprivateのため scheme=internal）
+aws elbv2 create-load-balancer --name hotel-info-mcp-alb \
+  --type application --scheme internal \
+  --subnets subnet-0e01338af438b23d6 subnet-0e87bd5170db46ae1 \
+  --security-groups sg-09fb06b23b250f8ab --region ap-northeast-1</code></pre>
+          </div>
+          <div class="cb">
+            <div class="cb-head"><span class="cb-lang">powershell</span><span class="cb-title">ターゲットグループ・リスナー・ECS紐付け（Git Bash だと /health がパス変換される）</span><button class="cb-copy">コピー</button></div>
+<pre><code>$TG = aws elbv2 create-target-group --name hotel-info-mcp-tg `
+  --protocol HTTP --port 8000 --vpc-id vpc-0bcd30e71b3160151 --target-type ip `
+  --health-check-path "/health" --health-check-interval-seconds 30 --healthy-threshold-count 2 `
+  --region ap-northeast-1 --query 'TargetGroups[0].TargetGroupArn' --output text
+
+$ALBARN = "arn:aws:elasticloadbalancing:ap-northeast-1:277019134452:loadbalancer/app/hotel-info-mcp-alb/9559d0870f353e60"
+
+aws elbv2 create-listener --load-balancer-arn $ALBARN `
+  --protocol HTTP --port 80 --default-actions "Type=forward,TargetGroupArn=$TG" `
+  --region ap-northeast-1
+
+# ECSサービスをALBに紐付け
+aws ecs update-service --cluster hotel-info-mcp-cluster --service hotel-info-mcp-server `
+  --load-balancers "targetGroupArn=$TG,containerName=hotel-info-mcp-server,containerPort=8000" `
+  --region ap-northeast-1</code></pre>
+          </div>
+          <div class="cb">
+            <div class="cb-head"><span class="cb-lang">bash</span><span class="cb-title">ターゲットが healthy になったか確認</span><button class="cb-copy">コピー</button></div>
+<pre><code>aws elbv2 describe-target-health \
+  --target-group-arn arn:aws:elasticloadbalancing:ap-northeast-1:277019134452:targetgroup/hotel-info-mcp-tg/ca781cf9a35b7e57 \
+  --region ap-northeast-1 \
+  --query 'TargetHealthDescriptions[].{ip:Target.Id,state:TargetHealth.State}'</code></pre>
+          </div>
+        </li>
+
+        <li class="step">
+          <div class="step-h"><span class="step-n">手順 11</span><span class="step-t">WAF の IP 許可リストに NAT IP を追加</span></div>
+          <p>公式API（API Gateway <code>dev-commapi-agw-api-ToyokoInnHpApi2-public</code>）には WAF <code>dev-commapi-wafacls-ToyokoInnHpApi</code> が付いており、デフォルト Block ＋ IP許可リスト方式。ECS の NAT ゲートウェイ IP を許可しないと、公式APIが 403 Forbidden を返し検索結果が常に0件になる。</p>
+          <div class="cb">
+            <div class="cb-head"><span class="cb-lang">bash</span><span class="cb-title">NAT IP の確認と IPセット</span><button class="cb-copy">コピー</button></div>
+<pre><code># NATゲートウェイのグローバルIPを確認
+aws ec2 describe-nat-gateways --nat-gateway-ids nat-03d0b75b65948d4eb --region ap-northeast-1 \
+  --query 'NatGateways[0].NatGatewayAddresses[].PublicIp'
+# → 35.79.200.36
+
+# IPセットに 35.79.200.36/32 を追加する
+# （共有インフラのため、実際の追加はAPI管理者に依頼した）
+aws wafv2 get-ip-set --name dev-commapi-wafipsets-ToyokoInnHpApi --scope REGIONAL \
+  --id 6fc9e61b-0bfa-4058-9ecc-eedb9ae02d95 --region ap-northeast-1</code></pre>
+          </div>
+        </li>
+
+        <li class="step">
+          <div class="step-h"><span class="step-n">手順 12</span><span class="step-t">CloudFront で HTTPS 公開（ChatGPT アプリ登録用）</span></div>
+          <p>ChatGPT などの外部サービスから接続するには HTTPS が必要。独自ドメインを使わずに済ませるため、CloudFront 既定の <code>*.cloudfront.net</code> 証明書を利用する。</p>
+          <div class="callout note">
+            <span class="ct">API Gateway ではなく CloudFront を選んだ理由</span>
+            <p>API Gateway でも HTTPS 化はできるが、統合タイムアウトが最大30秒のため MCP のストリーミング通信（Streamable HTTP / SSE）が切れる。</p>
+          </div>
+          <div class="cb">
+            <div class="cb-head"><span class="cb-lang">bash</span><span class="cb-title">1. VPCオリジンを作成し Deployed を待つ（10〜20分）</span><button class="cb-copy">コピー</button></div>
+<pre><code>ALBARN="arn:aws:elasticloadbalancing:ap-northeast-1:277019134452:loadbalancer/app/hotel-info-mcp-alb/9559d0870f353e60"
+
+aws cloudfront create-vpc-origin \
+  --vpc-origin-endpoint-config "Name=hotel-info-mcp-vpc-origin,Arn=$ALBARN,HTTPPort=80,HTTPSPort=443,OriginProtocolPolicy=http-only"
+# → Id: vo_CUC5eFXSAKHB8bxL3PQ9Gw
+
+until [ "$(aws cloudfront get-vpc-origin --id vo_CUC5eFXSAKHB8bxL3PQ9Gw --query 'VpcOrigin.Status' --output text)" = "Deployed" ]; do sleep 30; done</code></pre>
+          </div>
+          <p>ディストリビューション設定 <code>cf-config.json</code> を作る。MCP はストリーミング通信のため、キャッシュ無効・全ヘッダー転送が必須。</p>
+          <div class="cb">
+            <div class="cb-head"><span class="cb-lang">json</span><span class="cb-title">cf-config.json</span><button class="cb-copy">コピー</button></div>
+<pre><code>{
+  "CallerReference": "hotel-info-mcp-20260729",
+  "Comment": "hotel-info-mcp-server (MCP over HTTPS)",
+  "Enabled": true,
+  "Origins": {
+    "Quantity": 1,
+    "Items": [{
+      "Id": "hotel-info-mcp-alb",
+      "DomainName": "internal-hotel-info-mcp-alb-1843477390.ap-northeast-1.elb.amazonaws.com",
+      "VpcOriginConfig": {
+        "VpcOriginId": "vo_CUC5eFXSAKHB8bxL3PQ9Gw",
+        "OriginReadTimeout": 60,
+        "OriginKeepaliveTimeout": 60
+      },
+      "CustomHeaders": { "Quantity": 0 },
+      "ConnectionAttempts": 3,
+      "ConnectionTimeout": 10
+    }]
+  },
+  "DefaultCacheBehavior": {
+    "TargetOriginId": "hotel-info-mcp-alb",
+    "ViewerProtocolPolicy": "redirect-to-https",
+    "AllowedMethods": {
+      "Quantity": 7,
+      "Items": ["GET","HEAD","POST","PUT","PATCH","OPTIONS","DELETE"],
+      "CachedMethods": { "Quantity": 2, "Items": ["GET","HEAD"] }
+    },
+    "Compress": false,
+    "CachePolicyId": "4135ea2d-6df8-44a3-9df3-4b5a84be39ad",
+    "OriginRequestPolicyId": "216adef6-5c7f-47e4-b989-5492eafa07d3"
+  },
+  "PriceClass": "PriceClass_200",
+  "HttpVersion": "http2",
+  "IsIPV6Enabled": true
+}</code></pre>
+          </div>
+          <p class="muted"><code>CachePolicyId</code> は AWS 管理の CachingDisabled、<code>OriginRequestPolicyId</code> は AllViewer（全ヘッダー・クエリ・Cookie を転送）。</p>
+          <div class="cb">
+            <div class="cb-head"><span class="cb-lang">bash</span><span class="cb-title">3〜5. 作成・SG許可・Deployed待ち</span><button class="cb-copy">コピー</button></div>
+<pre><code># 3. ディストリビューションを作成する
+aws cloudfront create-distribution --distribution-config file://cf-config.json
+# → Id: E69XO759PMJOU / DomainName: d3v8770g38r8os.cloudfront.net
+
+# 4. ALB のセキュリティグループに VPCオリジンのSGを許可する（これがないと504になる）
+aws ec2 authorize-security-group-ingress \
+  --group-id sg-09fb06b23b250f8ab \
+  --protocol tcp --port 80 --source-group sg-0d43c98fe10d3b5cb \
+  --region ap-northeast-1
+
+# 5. Deployed になるまで待つ（5〜15分）
+until [ "$(aws cloudfront get-distribution --id E69XO759PMJOU --query 'Distribution.Status' --output text)" = "Deployed" ]; do sleep 30; done</code></pre>
+          </div>
+          <p>VPCオリジンのENIが使うセキュリティグループ（<code>CloudFront-VPCOrigins-Service-SG</code>）のIDは、以下で確認できる。</p>
+          <div class="cb">
+            <div class="cb-head"><span class="cb-lang">bash</span><span class="cb-title">VPCオリジン ENI の SG を調べる</span><button class="cb-copy">コピー</button></div>
+<pre><code>aws ec2 describe-network-interfaces --region ap-northeast-1 \
+  --filters "Name=description,Values=*CloudFront*" \
+  --query 'NetworkInterfaces[].{ip:PrivateIpAddress,sg:Groups[].GroupId}'</code></pre>
+          </div>
+        </li>
+      </ol>
+    </section>
+
+    <!-- ============ 7 ============ -->
+    <section class="sec" id="s7">
+      <h2><span class="num">07</span><span>動作確認</span></h2>
+
+      <h3>7.1 ALB 経由の直接呼び出し</h3>
+      <div class="cb">
+        <div class="cb-head"><span class="cb-lang">bash</span><span class="cb-title">health / tools / tools/call</span><button class="cb-copy">コピー</button></div>
+<pre><code>ALB=internal-hotel-info-mcp-alb-1843477390.ap-northeast-1.elb.amazonaws.com
+
+curl http://$ALB/health
+# {"status":"ok","service":"hotel-info-mcp-server"}
+
+curl http://$ALB/tools
+# {"tools":[{"name":"search_hotels","description":"ホテル情報検索。…","parameters":["criteria","conversation_id","user_id"]}]}
+
+cat &gt; req.json &lt;&lt; 'EOF'
+{"name":"search_hotels","arguments":{"criteria":{"destination":"大阪","checkin_date":"2026-08-20","nights":1,"guests":1,"rooms":1}}}
+EOF
+
+curl -X POST http://$ALB/tools/call -H "Content-Type: application/json" --data-binary @req.json</code></pre>
+      </div>
+      <p class="muted">結果: 1件ヒット・所要5.5秒（試験ホテル-大阪宿泊税 / 最安2,660円 / 部屋タイプ9種・空室52〜105室）</p>
+
+      <h3>7.2 LLM 経由の E2E</h3>
+      <p>発言「8月20日に大阪で1泊したいんだけど、空いてるホテルある？」</p>
+      <div class="tblwrap">
+        <table>
+          <thead><tr><th>ステップ</th><th>内容</th><th>所要</th></tr></thead>
+          <tbody>
+            <tr><td>② LLM→MCP</td><td><code>criteria={"destination":"大阪","checkin_date":"2026-08-20","nights":1}</code> を自動生成</td><td class="mono">1.6秒</td></tr>
+            <tr><td>③ MCP実行</td><td>ECS上のMCP → search-service → thhtldb＋公式API → 1件ヒット</td><td class="mono">4.4秒</td></tr>
+            <tr><td>④ 最終返答</td><td>部屋タイプ別にプラン・料金を列挙して回答</td><td class="mono">3.0秒</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="muted">ローカル実行時（合計11.2秒）と同等の結果・性能を確認した。</p>
+
+      <h3>7.3 CloudFront（HTTPS）経由の MCP プロトコル</h3>
+      <p>MCP クライアントと同じ手順（initialize → notifications/initialized → tools/*）で検証する。</p>
+      <div class="cb">
+        <div class="cb-head"><span class="cb-lang">bash</span><span class="cb-title">MCP プロトコル疎通</span><button class="cb-copy">コピー</button></div>
+<pre><code>CF=https://d3v8770g38r8os.cloudfront.net
+
+# ヘルスチェック
+curl $CF/health
+# {"status":"ok","service":"hotel-info-mcp-server"}
+
+# initialize（レスポンスヘッダ mcp-session-id を控える）
+S=$(curl -si -X POST $CF/mcp/ \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"test","version":"1"}}}' \
+  | grep -i "^mcp-session-id:" | tr -d '\r' | cut -d' ' -f2)
+
+# 初期化完了を通知
+curl -s -X POST $CF/mcp/ -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" -H "mcp-session-id: $S" \
+  -d '{"jsonrpc":"2.0","method":"notifications/initialized"}'
+
+# ツール一覧
+curl -s -X POST $CF/mcp/ -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" -H "mcp-session-id: $S" \
+  -d '{"jsonrpc":"2.0","id":2,"method":"tools/list"}'
+
+# ツール実行
+cat &gt; call.json &lt;&lt; 'EOF'
+{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"search_hotels","arguments":{"criteria":{"destination":"大阪","checkin_date":"2026-08-20","nights":1,"guests":1,"rooms":1}}}}
+EOF
+
+curl -s -X POST $CF/mcp/ -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" -H "mcp-session-id: $S" \
+  --data-binary @call.json</code></pre>
+      </div>
+      <div class="tblwrap">
+        <table>
+          <thead><tr><th>項目</th><th>結果</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">/health</td><td>HTTP 200（0.09秒）</td></tr>
+            <tr><td class="mono">initialize</td><td>Toyoko Inn Hotel Info MCP / v1.9.1 / protocolVersion 2025-03-26</td></tr>
+            <tr><td class="mono">tools/list</td><td><code>search_hotels</code> を返す</td></tr>
+            <tr><td class="mono">tools/call</td><td>1件ヒット（試験ホテル-大阪宿泊税 / 最安2,660円 / 部屋タイプ9種）・5.7秒</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="muted">内部ALB直接（HTTP）と同じ結果・性能で、CloudFront 経由でも公式API検索が成立した。</p>
+
+      <h3>7.4 ログの確認</h3>
+      <div class="cb">
+        <div class="cb-head"><span class="cb-lang">powershell</span><span class="cb-title">CloudWatch Logs をtailする</span><button class="cb-copy">コピー</button></div>
+<pre><code>aws logs tail "/ecs/hotel-info-mcp-server" --since 15m --region ap-northeast-1</code></pre>
+      </div>
+      <p>AWSマネジメントコンソールでは以下から確認できる。</p>
+      <ul>
+        <li>ECS → クラスター → <code>hotel-info-mcp-cluster</code> → サービス <code>hotel-info-mcp-server</code></li>
+        <li>CloudWatch → ロググループ → <code>/ecs/hotel-info-mcp-server</code></li>
+        <li>ECR → プライベートリポジトリ → <code>hotel-info-mcp-server</code> / <code>hotel-info-search-service</code></li>
+      </ul>
+    </section>
+
+    <!-- ============ 8 ============ -->
+    <section class="sec" id="s8">
+      <h2><span class="num">08</span><span>構築時に発生した問題と対処</span></h2>
+
+      <h3>8.1 タスクが起動できない（TaskFailedToStart）</h3>
+      <div class="cb">
+        <div class="cb-head"><span class="cb-lang">error</span><span class="cb-title">ResourceInitializationError</span><button class="cb-copy">コピー</button></div>
+<pre><code>ResourceInitializationError: ... AccessDeniedException: User: ...hotel-info-mcp-execution-role
+is not authorized to perform: logs:CreateLogGroup</code></pre>
+      </div>
+      <p><strong>原因:</strong> <code>AmazonECSTaskExecutionRolePolicy</code> には <code>logs:CreateLogStream</code> と <code>PutLogEvents</code> はあるが <code>logs:CreateLogGroup</code> は含まれない。タスク定義の <code>awslogs-create-group: true</code> が失敗していた。</p>
+      <p><strong>対処:</strong> ロググループを事前作成し（手順4）、タスク定義から <code>awslogs-create-group</code> を削除した。実行ロールに <code>logs:CreateLogGroup</code> を足す方法もあるが、権限を最小限に保つため前者を選んだ。</p>
+
+      <h3>8.2 ECR ログインが 400 Bad Request（PowerShell）</h3>
+      <p><strong>原因:</strong> Windows PowerShell 5.1 では <code>aws ecr get-login-password | docker login --password-stdin</code> のパイプでトークンが壊れる。</p>
+      <p><strong>対処:</strong> 一時ファイルに ASCII・改行なしで書き出し、cmd のリダイレクトで stdin に流す方式に変更した。</p>
+      <div class="cb">
+        <div class="cb-head"><span class="cb-lang">powershell</span><span class="cb-title">一時ファイル経由の docker login</span><button class="cb-copy">コピー</button></div>
+<pre><code>$TokenFile = [System.IO.Path]::GetTempFileName()
+$Token = aws ecr get-login-password --region $Region
+[System.IO.File]::WriteAllText($TokenFile, $Token, (New-Object System.Text.ASCIIEncoding))
+cmd /c "docker login --username AWS --password-stdin $Registry &lt; ""$TokenFile"""
+Remove-Item $TokenFile -Force</code></pre>
+      </div>
+
+      <h3>8.3 公式APIが 403 Forbidden（検索結果が常に0件）</h3>
+      <div class="cb">
+        <div class="cb-head"><span class="cb-lang">log</span><span class="cb-title">search-service のログ</span><button class="cb-copy">コピー</button></div>
+<pre><code>[search-service] rooms error hotel=00298: Client error '403 Forbidden' for url '.../access-token'</code></pre>
+      </div>
+      <p><strong>原因:</strong> API Gateway に WAF（デフォルト Block ＋ IP許可リスト）が付いており、ECS の NAT ゲートウェイ IP <code>35.79.200.36</code> が未登録だった。APIキー自体は Secrets Manager と .env で一致しており、認証の問題ではなかった。thhtldb からのホテルコード取得は成功していたため、ネットワーク経路も問題なかった。</p>
+      <p><strong>対処:</strong> IPセット <code>dev-commapi-wafipsets-ToyokoInnHpApi</code> に <code>35.79.200.36/32</code> を追加。</p>
+
+      <h3>8.4 /mcp が 500「Task group is not initialized」</h3>
+      <div class="cb">
+        <div class="cb-head"><span class="cb-lang">error</span><span class="cb-title">RuntimeError</span><button class="cb-copy">コピー</button></div>
+<pre><code>RuntimeError: Task group is not initialized. Make sure to use run().</code></pre>
+      </div>
+      <p><strong>原因:</strong> Starlette の <code>mount()</code> はサブアプリの lifespan を実行しない。<code>streamable_http_app()</code> をマウントしただけでは、Streamable HTTP のセッションマネージャが起動していない状態になる。</p>
+      <p><strong>対処:</strong> FastAPI 側の lifespan でセッションマネージャを明示的に起動する。</p>
+      <div class="cb">
+        <div class="cb-head"><span class="cb-lang">python</span><span class="cb-title">app/main.py — lifespan</span><button class="cb-copy">コピー</button></div>
+<pre><code>@contextlib.asynccontextmanager
+async def lifespan(_app: FastAPI):
+    async with contextlib.AsyncExitStack() as stack:
+        session_manager = getattr(mcp, "session_manager", None)
+        if session_manager is not None:
+            await stack.enter_async_context(session_manager.run())
+        yield
+
+app = FastAPI(title="Hotel Info MCP Server", lifespan=lifespan)</code></pre>
+      </div>
+      <div class="callout note">
+        <span class="ct">マウント順序</span>
+        <p><code>streamable_http_app()</code> の内部パスは <code>/mcp</code>、<code>sse_app()</code> は <code>/sse</code> と <code>/messages</code>。同じ <code>"/"</code> に二重マウントすると先に登録した方が全パスを受けてしまうため、先に <code>app.mount("/legacy", mcp.sse_app())</code>、後に <code>app.mount("/", mcp.streamable_http_app())</code> の順で登録している。</p>
+      </div>
+
+      <h3>8.5 CloudFront が 504 Gateway Timeout</h3>
+      <p><strong>原因:</strong> CloudFront の VPCオリジンが使う ENI から ALB への通信が、ALB のセキュリティグループで許可されていなかった。</p>
+      <p><strong>対処:</strong> ALB のセキュリティグループに、VPCオリジンのセキュリティグループ（<code>CloudFront-VPCOrigins-Service-SG</code>）からの 80/tcp を明示的に許可する。</p>
+      <div class="cb">
+        <div class="cb-head"><span class="cb-lang">bash</span><span class="cb-title">SG参照による許可</span><button class="cb-copy">コピー</button></div>
+<pre><code>aws ec2 authorize-security-group-ingress --group-id sg-09fb06b23b250f8ab \
+  --protocol tcp --port 80 --source-group sg-0d43c98fe10d3b5cb --region ap-northeast-1</code></pre>
+      </div>
+      <p class="muted">ENI の IP が許可済みの CIDR（<code>172.31.0.0/16</code>）に含まれていても、セキュリティグループ参照による許可が必要だった。なお切り分け時は curl のタイムアウトに注意する。CloudFront は <code>OriginReadTimeout</code>（今回60秒）を待ってから 504 を返すため、<code>curl -m 25</code> などで打ち切ると「応答なし」に見えて原因を誤認しやすい。</p>
+
+      <h3>8.6 その他の注意点</h3>
+      <div class="tblwrap">
+        <table>
+          <thead><tr><th>事象</th><th>原因と対処</th></tr></thead>
+          <tbody>
+            <tr><td><code>logGroupName</code> が <code>C:/Program Files/Git/ecs/...</code> になる</td><td>Git Bash のパス変換。<code>/</code> で始まる引数は PowerShell で実行する</td></tr>
+            <tr><td>IAM <code>create-role</code> の description でエラー</td><td>description に日本語（マルチバイト）は使えない。ASCII のみ</td></tr>
+            <tr><td>日本語を含む curl の <code>-d</code> が「error parsing the body」</td><td>シェルの引数エンコーディング。JSONはファイルに書き <code>--data-binary @file</code> で渡す</td></tr>
+            <tr><td>日本語入り <code>.ps1</code> がパースエラー</td><td>Windows PowerShell 5.1 は BOMなしUTF-8をANSIとして読む。BOM付きUTF-8で保存する</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ============ 9 ============ -->
+    <section class="sec" id="s9">
+      <h2><span class="num">09</span><span>運用</span></h2>
+
+      <h3>9.1 イメージを更新して反映する</h3>
+      <div class="cb">
+        <div class="cb-head"><span class="cb-lang">powershell</span><span class="cb-title">deploy.ps1 → force-new-deployment</span><button class="cb-copy">コピー</button></div>
+<pre><code>./reservation_platform/backend/mcp/hotel_info_server/deploy/deploy.ps1
+
+aws ecs update-service --cluster hotel-info-mcp-cluster --service hotel-info-mcp-server `
+  --force-new-deployment --region ap-northeast-1</code></pre>
+      </div>
+
+      <h3>9.2 停止・再開</h3>
+      <div class="callout warn">
+        <span class="ct">必須</span>
+        <p>CloudFront による外部公開は認証がないため、動作確認が終わったら必ず停止すること。</p>
+      </div>
+      <div class="cb">
+        <div class="cb-head"><span class="cb-lang">bash</span><span class="cb-title">ECSタスクの停止・再開</span><button class="cb-copy">コピー</button></div>
+<pre><code># ① ECSタスクを止める（Fargate課金が止まり、外部からも応答しなくなる）
+aws ecs update-service --cluster hotel-info-mcp-cluster --service hotel-info-mcp-server \
+  --desired-count 0 --region ap-northeast-1
+
+# 再開する場合
+aws ecs update-service --cluster hotel-info-mcp-cluster --service hotel-info-mcp-server \
+  --desired-count 1 --region ap-northeast-1</code></pre>
+      </div>
+      <p>外部公開だけを止めたい場合は CloudFront を無効化する。</p>
+      <div class="cb">
+        <div class="cb-head"><span class="cb-lang">bash</span><span class="cb-title">CloudFront を Enabled=false にする</span><button class="cb-copy">コピー</button></div>
+<pre><code># 現在の設定と ETag を取得
+aws cloudfront get-distribution-config --id E69XO759PMJOU &gt; dist.json
+ETAG=$(python -c "import json;print(json.load(open('dist.json'))['ETag'])")
+
+python -c "
+import json
+d = json.load(open('dist.json'))['DistributionConfig']
+d['Enabled'] = False
+json.dump(d, open('dist-disabled.json','w'))
+"
+
+aws cloudfront update-distribution --id E69XO759PMJOU \
+  --distribution-config file://dist-disabled.json --if-match $ETAG</code></pre>
+      </div>
+
+      <h3>9.3 完全に削除する</h3>
+      <p>CloudFront は「無効化 → Deployed 待ち → 削除」の順で、他より先に消す。</p>
+      <div class="cb">
+        <div class="cb-head"><span class="cb-lang">bash</span><span class="cb-title">全リソースの削除</span><button class="cb-copy">コピー</button></div>
+<pre><code># CloudFront（9.2の手順で Enabled=false にしてから）
+aws cloudfront delete-distribution --id E69XO759PMJOU --if-match &lt;ETag&gt;
+aws cloudfront delete-vpc-origin --id vo_CUC5eFXSAKHB8bxL3PQ9Gw --if-match &lt;ETag&gt;
+
+aws ecs update-service --cluster hotel-info-mcp-cluster --service hotel-info-mcp-server --desired-count 0 --region ap-northeast-1
+aws ecs delete-service --cluster hotel-info-mcp-cluster --service hotel-info-mcp-server --force --region ap-northeast-1
+
+aws elbv2 delete-listener --listener-arn &lt;リスナーARN&gt; --region ap-northeast-1
+aws elbv2 delete-load-balancer --load-balancer-arn &lt;ALB ARN&gt; --region ap-northeast-1
+aws elbv2 delete-target-group --target-group-arn &lt;TG ARN&gt; --region ap-northeast-1
+
+aws ecs delete-cluster --cluster hotel-info-mcp-cluster --region ap-northeast-1
+aws ec2 delete-security-group --group-id sg-09fb06b23b250f8ab --region ap-northeast-1
+aws ec2 delete-security-group --group-id sg-0e9276e4131159dfa --region ap-northeast-1
+aws logs delete-log-group --log-group-name "/ecs/hotel-info-mcp-server" --region ap-northeast-1
+aws secretsmanager delete-secret --secret-id hotel-info-mcp --force-delete-without-recovery --region ap-northeast-1
+
+aws iam delete-role-policy --role-name hotel-info-mcp-execution-role --policy-name hotel-info-mcp-secrets
+aws iam detach-role-policy --role-name hotel-info-mcp-execution-role --policy-arn arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+aws iam delete-role --role-name hotel-info-mcp-execution-role
+aws iam delete-role-policy --role-name hotel-info-mcp-task-role --policy-name ecs-exec
+aws iam delete-role --role-name hotel-info-mcp-task-role
+
+aws ecr delete-repository --repository-name hotel-info-mcp-server --force --region ap-northeast-1
+aws ecr delete-repository --repository-name hotel-info-search-service --force --region ap-northeast-1</code></pre>
+      </div>
+      <div class="callout warn">
+        <span class="ct">忘れずに</span>
+        <p>WAF の IPセット <code>dev-commapi-wafipsets-ToyokoInnHpApi</code> から <code>35.79.200.36/32</code> を削除すること（他システムと共有している設定のため）。</p>
+      </div>
+
+      <h3>9.4 運用上の注意</h3>
+      <ul>
+        <li>CloudFront は認証なしでインターネット公開されている。ChatGPT アプリの動作確認用の一時構成であり、確認後は 9.2 の手順で停止すること。継続運用する場合は WAF による IP 制限やカスタムヘッダー認証を検討すること</li>
+        <li>ECS の NAT ゲートウェイ IP（<code>35.79.200.36</code>）が変わった場合、WAF への再登録が必要。NATを作り直したり別サブネットへ移す際は必ず確認すること</li>
+        <li>公式APIキー・thhtldbパスワードを変更した場合は Secrets Manager を更新し、<code>--force-new-deployment</code> でタスクを入れ替える</li>
+        <li>ALB は内部向け（<code>internal-</code>）。インターネットに公開する場合は public サブネットと HTTPS リスナー（ACM証明書）の追加が必要</li>
+      </ul>
+    </section>
+
+    <!-- ============ 10 ============ -->
+    <section class="sec" id="s10">
+      <h2><span class="num">10</span><span>関連ドキュメント</span></h2>
+      <div class="tblwrap">
+        <table>
+          <thead><tr><th>ドキュメント</th><th>内容</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">reservation_platform/要件定義書.md</td><td>要件70（初版）・要件71（公式API差し替え）</td></tr>
+            <tr><td class="mono">reservation_platform/設計書.md</td><td>設計70（構成）・設計71（公式API方式）・検証結果</td></tr>
+            <tr><td class="mono">backend/mcp/hotel_info_server/README.md</td><td>ツール仕様と使い方</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<footer>
+  <div class="foot-in">
+    <div class="foot-h">シリーズ</div>
+    <a class="foot-link" href="./hotel-info-mcp-chatgpt-widget-guide.html">
+      <span class="fl-k">手順書 02 / 続編</span>
+      <span class="fl-t">ホテル検索ChatGPTアプリ（ウィジェット）構成とデプロイ手順書 →</span>
+    </a>
+    <p class="foot-meta">
+      hotel-info-mcp-server ／ 作成日 2026-07-29<br>
+      AWSアカウント 277019134452 ／ リージョン ap-northeast-1<br>
+      CloudFront による外部公開は認証なし。動作確認後は 9.2 の手順で停止すること。
+    </p>
+  </div>
+</footer>
+
+<script>
+(function(){
+  function flash(btn, text){
+    var old = btn.textContent;
+    btn.textContent = text; btn.classList.add('done');
+    setTimeout(function(){ btn.textContent = old; btn.classList.remove('done'); }, 1400);
+  }
+  function copy(text, btn){
+    if (navigator.clipboard && window.isSecureContext){
+      navigator.clipboard.writeText(text).then(function(){ flash(btn,'コピーしました'); },
+        function(){ flash(btn,'コピーできません'); });
+    } else {
+      var ta = document.createElement('textarea');
+      ta.value = text; ta.style.position='fixed'; ta.style.opacity='0';
+      document.body.appendChild(ta); ta.select();
+      try { document.execCommand('copy'); flash(btn,'コピーしました'); }
+      catch(e){ flash(btn,'コピーできません'); }
+      document.body.removeChild(ta);
+    }
+  }
+  document.querySelectorAll('.cb-copy').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var pre = btn.closest('.cb').querySelector('pre');
+      copy(pre.innerText, btn);
+    });
+  });
+  document.querySelectorAll('.ep-copy').forEach(function(btn){
+    btn.addEventListener('click', function(){ copy(btn.dataset.copy, btn); });
+  });
+
+  var links = Array.prototype.slice.call(document.querySelectorAll('.rail a'));
+  var secs  = links.map(function(a){ return document.querySelector(a.getAttribute('href')); });
+  if ('IntersectionObserver' in window && secs.length){
+    var io = new IntersectionObserver(function(entries){
+      entries.forEach(function(e){
+        if (!e.isIntersecting) return;
+        var i = secs.indexOf(e.target);
+        if (i < 0) return;
+        links.forEach(function(a){ a.classList.remove('active'); });
+        links[i].classList.add('active');
+      });
+    }, { rootMargin: '-64px 0px -70% 0px', threshold: 0 });
+    secs.forEach(function(s){ if (s) io.observe(s); });
+  }
+})();
+</script>
+</body>
+</html>

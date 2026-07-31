@@ -1,0 +1,788 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CloudWatch の仕組み — 構成メモ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@700&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  color-scheme: light;
+  --paper:#ECEEF1;
+  --card:#F6F7F9;
+  --ink:#161C21;
+  --ink-2:#47515A;
+  --ink-3:#79838C;
+  --rule:#C6CCD2;
+  --rule-soft:#D9DEE3;
+  --sign:#1E4A6B;
+  --sign-2:#2E688F;
+  --sign-ink:#E7EEF4;
+  --amber:#8A5A12;
+  --amber-bg:#F3EBDA;
+  --danger:#7E3229;
+  --danger-bg:#F2E2DE;
+  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  --disp:"Shippori Mincho B1", serif;
+  --body:"Zen Kaku Gothic New", system-ui, sans-serif;
+  --nav-w:264px;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+@media (prefers-reduced-motion: reduce){html{scroll-behavior:auto}*{animation:none!important;transition:none!important}}
+body{
+  margin:0;background:var(--paper);color:var(--ink);
+  font-family:var(--body);font-weight:400;font-size:16px;line-height:1.85;
+  -webkit-font-smoothing:antialiased;
+}
+
+.directory{
+  position:fixed;top:0;left:0;width:var(--nav-w);height:100vh;
+  background:var(--sign);color:var(--sign-ink);
+  padding:32px 0 24px;overflow-y:auto;z-index:20;
+}
+.directory .plate{
+  padding:0 24px 20px;margin-bottom:8px;
+  border-bottom:1px solid rgba(231,238,244,.22);
+}
+.directory .plate b{
+  display:block;font-family:var(--disp);font-size:17px;font-weight:700;
+  letter-spacing:.06em;line-height:1.5;
+}
+.directory .plate span{
+  display:block;font-size:11.5px;letter-spacing:.16em;
+  color:rgba(231,238,244,.6);margin-top:6px;
+}
+.directory ol{list-style:none;margin:0;padding:0}
+.directory a{
+  display:block;padding:7px 24px 7px 22px;
+  color:rgba(231,238,244,.78);text-decoration:none;
+  font-size:13.5px;line-height:1.5;border-left:2px solid transparent;
+  transition:color .15s, border-color .15s, background .15s;
+}
+.directory a .num{
+  font-family:var(--mono);font-size:11px;letter-spacing:.08em;
+  color:rgba(231,238,244,.45);margin-right:9px;
+}
+.directory a:hover{color:#fff;background:rgba(255,255,255,.06)}
+.directory a.sub{padding-left:44px;font-size:12.5px;color:rgba(231,238,244,.58)}
+.directory a.on{color:#fff;border-left-color:#fff;background:rgba(255,255,255,.08)}
+.directory a.on .num{color:rgba(255,255,255,.8)}
+.directory a:focus-visible{outline:2px solid #fff;outline-offset:-2px}
+.dir-sep{
+  padding:16px 24px 6px;font-size:10.5px;letter-spacing:.2em;
+  color:rgba(231,238,244,.45);
+}
+
+.sheet{margin-left:var(--nav-w);padding:0 clamp(20px,5vw,76px) 120px;max-width:1020px}
+
+.masthead{padding:84px 0 40px;border-bottom:2px solid var(--ink)}
+.eyebrow{
+  font-family:var(--mono);font-size:11.5px;letter-spacing:.24em;
+  color:var(--sign);text-transform:uppercase;margin:0 0 20px;
+}
+h1{
+  font-family:var(--disp);font-weight:700;
+  font-size:clamp(30px,5.2vw,52px);line-height:1.32;
+  letter-spacing:.01em;margin:0 0 18px;
+}
+.standfirst{font-size:16.5px;color:var(--ink-2);max-width:56ch;margin:0}
+.meta{
+  margin-top:28px;font-family:var(--mono);font-size:11.5px;
+  letter-spacing:.1em;color:var(--ink-3);
+}
+
+.formula{
+  margin:44px 0 0;padding:26px 28px;background:var(--card);
+  border:1px solid var(--rule);border-radius:4px;
+}
+.formula .lead{
+  font-size:12px;letter-spacing:.16em;color:var(--sign);
+  margin:0 0 16px;font-weight:700;
+}
+.formula .terms{
+  display:flex;flex-wrap:wrap;align-items:center;gap:10px 12px;
+  font-family:var(--disp);font-size:clamp(15px,2.4vw,20px);font-weight:700;
+}
+.formula .op{color:var(--sign-2);font-family:var(--body);font-weight:400}
+.formula .out{
+  color:var(--sign);border-bottom:2px solid var(--sign-2);padding-bottom:2px;
+}
+.formula p{margin:16px 0 0;font-size:14.5px;color:var(--ink-2)}
+
+section{padding-top:72px;scroll-margin-top:24px}
+h2{
+  font-family:var(--disp);font-weight:700;font-size:clamp(22px,3.2vw,30px);
+  line-height:1.45;margin:0 0 8px;
+}
+.h2rule{display:flex;align-items:center;gap:14px;margin-bottom:26px}
+.h2rule .n{
+  font-family:var(--mono);font-size:12px;letter-spacing:.14em;
+  color:#fff;background:var(--sign);padding:3px 9px;border-radius:2px;flex:none;
+}
+.h2rule .line{flex:1;height:1px;background:var(--rule)}
+h3{
+  font-family:var(--body);font-weight:700;font-size:18px;line-height:1.6;
+  margin:44px 0 12px;padding-bottom:8px;border-bottom:1px solid var(--rule-soft);
+}
+h4{font-family:var(--body);font-weight:700;font-size:15.5px;margin:28px 0 8px}
+p{margin:0 0 18px}
+strong{font-weight:700}
+a{color:var(--sign)}
+ul,ol{margin:0 0 18px;padding-left:1.3em}
+li{margin-bottom:7px}
+code{
+  font-family:var(--mono);font-size:.86em;background:#DFE4E9;
+  padding:.14em .42em;border-radius:3px;color:#232B31;
+}
+pre{
+  font-family:var(--mono);font-size:13px;line-height:1.75;
+  background:var(--ink);color:#DAE1E7;padding:18px 20px;border-radius:4px;
+  overflow-x:auto;margin:0 0 20px;
+}
+pre code{background:none;padding:0;color:inherit;font-size:inherit}
+
+.tw{overflow-x:auto;margin:0 0 24px;-webkit-overflow-scrolling:touch}
+table{border-collapse:collapse;width:100%;font-size:14.5px;min-width:520px}
+caption{
+  caption-side:top;text-align:left;font-size:12.5px;letter-spacing:.06em;
+  color:var(--ink-3);padding-bottom:9px;
+}
+th,td{padding:10px 14px;text-align:left;vertical-align:top;border-bottom:1px solid var(--rule-soft)}
+thead th{
+  font-size:12px;letter-spacing:.09em;font-weight:700;color:var(--sign);
+  border-bottom:1.5px solid var(--sign);white-space:nowrap;
+}
+tbody tr:hover{background:rgba(30,74,107,.05)}
+td:first-child{font-weight:500}
+.free{color:var(--sign);font-weight:700}
+.paid{color:var(--danger);font-weight:700}
+
+figure{margin:30px 0 34px}
+figure svg{display:block;width:100%;height:auto;background:var(--card);border:1px solid var(--rule);border-radius:4px;padding:8px 0}
+figcaption{
+  margin-top:11px;font-size:12.5px;color:var(--ink-3);
+  padding-left:14px;border-left:2px solid var(--rule);
+}
+
+.note{
+  border-left:3px solid var(--sign);background:rgba(30,74,107,.06);
+  padding:16px 20px;margin:0 0 24px;border-radius:0 3px 3px 0;
+}
+.note.warn{border-left-color:var(--amber);background:var(--amber-bg)}
+.note.stop{border-left-color:var(--danger);background:var(--danger-bg)}
+.note p:last-child{margin-bottom:0}
+.note .lab{
+  display:block;font-size:11.5px;letter-spacing:.16em;font-weight:700;
+  color:var(--sign);margin-bottom:6px;
+}
+.note.warn .lab{color:var(--amber)}
+.note.stop .lab{color:var(--danger)}
+
+.steps{list-style:none;margin:0 0 26px;padding:0;counter-reset:s}
+.steps li{
+  counter-increment:s;position:relative;padding:0 0 20px 52px;margin:0;
+  border-left:1px solid var(--rule);
+}
+.steps li:last-child{border-left-color:transparent;padding-bottom:0}
+.steps li::before{
+  content:counter(s,decimal-leading-zero);position:absolute;left:-15px;top:1px;
+  width:30px;height:30px;border-radius:50%;background:var(--paper);
+  border:1px solid var(--sign);color:var(--sign);
+  font-family:var(--mono);font-size:11.5px;
+  display:flex;align-items:center;justify-content:center;
+}
+.steps b{display:block;font-size:15.5px;margin-bottom:5px;padding-top:2px}
+.steps p{margin:0;font-size:14.5px;color:var(--ink-2)}
+
+.d-t{font-family:var(--body);font-size:14px;fill:var(--ink)}
+.d-ts{font-family:var(--body);font-size:12px;fill:var(--ink-2)}
+.d-th{font-family:var(--body);font-size:14px;font-weight:500;fill:var(--ink)}
+.arr{stroke:var(--ink-3);stroke-width:1.5;fill:none}
+rect.d-box{fill:var(--card);stroke:var(--rule);stroke-width:.8}
+.f-blue rect{fill:#DCE6EE;stroke:#2E688F;stroke-width:.8}
+.f-blue .d-t,.f-blue .d-th{fill:#193D57}.f-blue .d-ts{fill:#325A75}
+.f-plum rect{fill:#E5DFEA;stroke:#6E5A87;stroke-width:.8}
+.f-plum .d-t,.f-plum .d-th{fill:#3B2E4C}.f-plum .d-ts{fill:#544266}
+.f-clay rect{fill:#F1DED6;stroke:#A85C43;stroke-width:.8}
+.f-clay .d-t,.f-clay .d-th{fill:#6B3220}.f-clay .d-ts{fill:#84462F}
+.f-gray rect{fill:#E1E5E9;stroke:#939BA3;stroke-width:.8}
+.f-gray .d-t,.f-gray .d-th{fill:#323A41}.f-gray .d-ts{fill:#515A62}
+
+footer{
+  margin-top:96px;padding-top:26px;border-top:2px solid var(--ink);
+  font-size:13px;color:var(--ink-3);
+}
+
+@media (max-width:960px){
+  :root{--nav-w:0px}
+  .directory{position:static;width:auto;height:auto;padding:22px 0 18px}
+  .directory ol{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:0 4px}
+  .directory a.sub{display:none}
+  .dir-sep{display:none}
+  .sheet{margin-left:0}
+  .masthead{padding-top:48px}
+}
+
+@media print{
+  .directory{display:none}
+  .sheet{margin-left:0;max-width:none}
+  body{background:#fff;font-size:11pt}
+  section{page-break-inside:auto;padding-top:28px}
+  h2,h3{page-break-after:avoid}
+  figure,table,.note{page-break-inside:avoid}
+}
+</style>
+</head>
+<body>
+
+<nav class="directory" aria-label="目次">
+  <div class="plate">
+    <b>CloudWatch の仕組み</b>
+    <span>AWS 構成メモ VOL.2</span>
+  </div>
+  <div class="dir-sep">基礎</div>
+  <ol>
+    <li><a href="#s1"><span class="num">01</span>2系統に分かれている</a></li>
+    <li><a href="#s2"><span class="num">02</span>メトリクス</a>
+      <a class="sub" href="#s2-dim">ディメンション</a>
+      <a class="sub" href="#s2-stat">統計と期間</a>
+      <a class="sub" href="#s2-ret">保持期間</a>
+    </li>
+    <li><a href="#s3"><span class="num">03</span>ログ</a>
+      <a class="sub" href="#s3-bridge">ログを数値に変える</a>
+      <a class="sub" href="#s3-insights">Logs Insights</a>
+    </li>
+    <li><a href="#s4"><span class="num">04</span>アラーム</a></li>
+    <li><a href="#s5"><span class="num">05</span>料金の勘所</a></li>
+  </ol>
+  <div class="dir-sep">逆引き</div>
+  <ol start="6">
+    <li><a href="#s6"><span class="num">06</span>名前空間とメトリクス名</a>
+      <a class="sub" href="#s6-apigw">API Gateway</a>
+      <a class="sub" href="#s6-other">他サービス</a>
+      <a class="sub" href="#s6-custom">カスタム</a>
+    </li>
+    <li><a href="#s7"><span class="num">07</span>実例と探し方</a></li>
+  </ol>
+</nav>
+
+<main class="sheet">
+
+<header class="masthead">
+  <p class="eyebrow">Internal reference / vol.2</p>
+  <h1>CloudWatch の仕組み</h1>
+  <p class="standfirst">
+    「監視サービス」と一括りにされがちですが、実際は中身の違う複数の仕組みが
+    同じ名前の下に同居しています。どこに何が記録され、どう取り出すのかを整理した記録です。
+  </p>
+  <p class="meta">2026 / 全 7 章</p>
+
+  <div class="formula">
+    <p class="lead">まず覚える一行</p>
+    <div class="terms">
+      <span>名前空間</span><span class="op">＋</span>
+      <span>メトリクス名</span><span class="op">＋</span>
+      <span>ディメンション</span><span class="op">＝</span>
+      <span class="out">時系列 1 本</span>
+    </div>
+    <p>
+      この 3 つの組み合わせが、グラフに描かれる線 1 本を決めます。
+      ディメンションが 1 つ違えば別の線になる、という性質がすべての土台です。
+    </p>
+  </div>
+</header>
+
+<!-- ============ 01 ============ -->
+<section id="s1">
+  <div class="h2rule"><span class="n">01</span><h2>2系統に分かれている</h2><span class="line"></span></div>
+
+  <p>
+    CloudWatch に入ってくるデータは、大きく<strong>メトリクス（数値）</strong>と
+    <strong>ログ（テキスト）</strong>の 2 系統です。保存場所も、取り出し方も、料金体系も別物です。
+    ここを混同しないことが理解の第一歩になります。
+  </p>
+
+  <figure>
+    <svg viewBox="0 0 680 510" role="img" aria-label="AWSサービスからメトリクスとログの2系統でデータが集まり、ダッシュボードとアラームに出力される流れ">
+      <defs><marker id="ar1" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#79838C" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+      <g class="f-gray"><rect x="230" y="30" width="220" height="44" rx="8"/>
+        <text class="d-th" x="340" y="52" text-anchor="middle" dominant-baseline="central">AWSサービス・アプリ</text></g>
+      <path d="M340 74 L340 100 L185 100 L185 116" class="arr" marker-end="url(#ar1)"/>
+      <path d="M340 74 L340 100 L495 100 L495 116" class="arr" marker-end="url(#ar1)"/>
+      <g class="f-blue"><rect x="60" y="122" width="250" height="64" rx="8"/>
+        <text class="d-th" x="185" y="146" text-anchor="middle" dominant-baseline="central">メトリクス</text>
+        <text class="d-ts" x="185" y="166" text-anchor="middle" dominant-baseline="central">数値の時系列</text></g>
+      <g class="f-plum"><rect x="370" y="122" width="250" height="64" rx="8"/>
+        <text class="d-th" x="495" y="146" text-anchor="middle" dominant-baseline="central">ログ</text>
+        <text class="d-ts" x="495" y="166" text-anchor="middle" dominant-baseline="central">テキストの記録</text></g>
+      <line x1="185" y1="190" x2="185" y2="216" class="arr" marker-end="url(#ar1)"/>
+      <line x1="495" y1="190" x2="495" y2="216" class="arr" marker-end="url(#ar1)"/>
+      <rect class="d-box" x="60" y="222" width="250" height="64" rx="8"/>
+      <text class="d-th" x="185" y="246" text-anchor="middle" dominant-baseline="central">統計と期間を指定</text>
+      <text class="d-ts" x="185" y="266" text-anchor="middle" dominant-baseline="central">Sum / p95 / 1時間</text>
+      <rect class="d-box" x="370" y="222" width="250" height="64" rx="8"/>
+      <text class="d-th" x="495" y="246" text-anchor="middle" dominant-baseline="central">Logs Insights</text>
+      <text class="d-ts" x="495" y="266" text-anchor="middle" dominant-baseline="central">クエリで抽出</text>
+      <path d="M185 290 L185 312 L495 312 L495 290" class="arr"/>
+      <line x1="210" y1="312" x2="210" y2="338" class="arr" marker-end="url(#ar1)"/>
+      <line x1="470" y1="312" x2="470" y2="338" class="arr" marker-end="url(#ar1)"/>
+      <g class="f-gray"><rect x="110" y="342" width="200" height="56" rx="8"/>
+        <text class="d-th" x="210" y="363" text-anchor="middle" dominant-baseline="central">ダッシュボード</text>
+        <text class="d-ts" x="210" y="382" text-anchor="middle" dominant-baseline="central">並べて見る</text></g>
+      <g class="f-clay"><rect x="370" y="342" width="200" height="56" rx="8"/>
+        <text class="d-th" x="470" y="363" text-anchor="middle" dominant-baseline="central">アラーム</text>
+        <text class="d-ts" x="470" y="382" text-anchor="middle" dominant-baseline="central">閾値超えで通知</text></g>
+      <line x1="470" y1="402" x2="470" y2="424" class="arr" marker-end="url(#ar1)"/>
+      <g class="f-gray"><rect x="370" y="430" width="200" height="44" rx="8"/>
+        <text class="d-th" x="470" y="452" text-anchor="middle" dominant-baseline="central">SNS で通知</text></g>
+    </svg>
+    <figcaption>アラームはメトリクスにしか張れない。ログの内容で通知したい場合は、メトリクスフィルターで橋を架ける。</figcaption>
+  </figure>
+</section>
+
+<!-- ============ 02 ============ -->
+<section id="s2">
+  <div class="h2rule"><span class="n">02</span><h2>メトリクス</h2><span class="line"></span></div>
+
+  <p>数値の時系列データです。AWS のサービスが自動で送ってくるので、こちら側で設定するものはありません。</p>
+
+  <figure>
+    <svg viewBox="0 0 680 290" role="img" aria-label="名前空間とメトリクス名とディメンションの組み合わせが時系列1本を決めることを示した図">
+      <defs><marker id="ar2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#79838C" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+      <g class="f-gray"><rect x="40" y="40" width="180" height="54" rx="8"/>
+        <text class="d-th" x="130" y="61" text-anchor="middle" dominant-baseline="central">名前空間</text>
+        <text class="d-ts" x="130" y="80" text-anchor="middle" dominant-baseline="central">AWS/ApiGateway</text></g>
+      <g class="f-gray"><rect x="250" y="40" width="180" height="54" rx="8"/>
+        <text class="d-th" x="340" y="61" text-anchor="middle" dominant-baseline="central">メトリクス名</text>
+        <text class="d-ts" x="340" y="80" text-anchor="middle" dominant-baseline="central">5XXError</text></g>
+      <g class="f-gray"><rect x="460" y="40" width="180" height="54" rx="8"/>
+        <text class="d-th" x="550" y="61" text-anchor="middle" dominant-baseline="central">ディメンション</text>
+        <text class="d-ts" x="550" y="80" text-anchor="middle" dominant-baseline="central">ApiName=ota-api</text></g>
+      <path d="M130 98 L130 122 L550 122 L550 98" class="arr"/>
+      <line x1="340" y1="98" x2="340" y2="122" class="arr"/>
+      <line x1="340" y1="122" x2="340" y2="166" class="arr" marker-end="url(#ar2)"/>
+      <g class="f-blue"><rect x="230" y="172" width="220" height="60" rx="8"/>
+        <text class="d-th" x="340" y="194" text-anchor="middle" dominant-baseline="central">時系列 1 本</text>
+        <text class="d-ts" x="340" y="214" text-anchor="middle" dominant-baseline="central">グラフに描かれる線</text></g>
+      <text class="d-ts" x="340" y="262" text-anchor="middle">ディメンションが1つ違えば、別の線として扱われる</text>
+    </svg>
+    <figcaption>ドメイン別・ステージ別に分けられるかどうかは、AWS が用意したディメンションで決まる。存在しない軸では絶対に分けられない。</figcaption>
+  </figure>
+
+  <h3 id="s2-dim">ディメンションの組み合わせ</h3>
+  <p>
+    同じ <code>5XXError</code> でも、API Gateway は複数の粒度で送ってきます。
+    <strong>粒度ごとに別のメトリクスとして存在する</strong>のがポイントです。
+  </p>
+  <pre><code>{ApiName}                          ← API全体の合計
+{ApiName, Stage}                   ← ステージ別
+{ApiName, Stage, Resource, Method} ← メソッド別（詳細メトリクス有効時のみ）</code></pre>
+  <p>
+    ダッシュボードを「API 別に分けたい」と思ったとき、追加の設定が要らないのはこの構造のおかげです。
+    取り出すときにディメンションを指定するだけで分かれます。
+  </p>
+
+  <h3 id="s2-stat">統計と期間は「見るとき」に決める</h3>
+  <p>
+    ここが直感に反するところです。CloudWatch は生のデータポイントを保持していて、
+    <strong>Sum なのか Average なのか p95 なのかは、グラフを描く瞬間に指定します</strong>。
+    記録時に悩む必要はなく、あとから別の見方に変えられます。
+  </p>
+  <div class="tw"><table>
+    <thead><tr><th>統計</th><th>意味</th><th>よく使う場面</th></tr></thead>
+    <tbody>
+      <tr><td><code>Sum</code></td><td>期間内の合計</td><td>リクエスト数、エラー数</td></tr>
+      <tr><td><code>Average</code></td><td>期間内の平均</td><td>CPU 使用率などの傾向</td></tr>
+      <tr><td><code>Maximum</code></td><td>期間内の最大値</td><td>ピーク検出。スロットリングの値決め</td></tr>
+      <tr><td><code>Minimum</code></td><td>期間内の最小値</td><td>空き容量の下限確認</td></tr>
+      <tr><td><code>SampleCount</code></td><td>データポイント数</td><td>データが来ているかの確認</td></tr>
+      <tr><td><code>p95</code> / <code>p99</code></td><td>パーセンタイル</td><td>レイテンシ</td></tr>
+    </tbody>
+  </table></div>
+  <div class="note warn">
+    <span class="lab">レイテンシに Average は使わない</span>
+    <p>
+      平均値は、少数の極端に遅いリクエストを希釈してしまいます。
+      1,000 件のうち 50 件が 10 秒かかっていても、平均では見えません。
+      <strong>レイテンシは <code>p95</code> か <code>p99</code> で見る</strong>のが定石です。
+    </p>
+  </div>
+
+  <h3 id="s2-ret">保持期間とロールアップ</h3>
+  <p>古いデータは自動的に集約され、解像度が粗くなっていきます。</p>
+  <div class="tw"><table>
+    <thead><tr><th>解像度</th><th>保持期間</th></tr></thead>
+    <tbody>
+      <tr><td>1 秒未満（高解像度）</td><td>3 時間</td></tr>
+      <tr><td>1 分</td><td>15 日</td></tr>
+      <tr><td>5 分</td><td>63 日</td></tr>
+      <tr><td>1 時間</td><td>15 か月</td></tr>
+    </tbody>
+  </table></div>
+  <p>
+    つまり<strong>半年前のデータを 1 分刻みで見ることはできません</strong>。
+    長期の詳細な記録が必要なら、S3 へエクスポートするか、メトリクスストリームで別基盤へ流す設計が要ります。
+    逆に言えば、直近の障害調査であれば 1 分解像度が使えるので、期間を絞って見るのが有効です。
+  </p>
+</section>
+
+<!-- ============ 03 ============ -->
+<section id="s3">
+  <div class="h2rule"><span class="n">03</span><h2>ログ</h2><span class="line"></span></div>
+
+  <p>テキストの記録です。3 階層になっています。</p>
+  <div class="tw"><table>
+    <thead><tr><th>階層</th><th>何を表すか</th><th>ここに紐づく設定</th></tr></thead>
+    <tbody>
+      <tr><td>ロググループ</td><td>ログの入れ物</td><td><strong>保持期間、暗号化、IAM 権限、サブスクリプション</strong></td></tr>
+      <tr><td>ログストリーム</td><td>送信元 1 つ分</td><td>（設定なし）</td></tr>
+      <tr><td>ログイベント</td><td>1 行のログ</td><td>（設定なし）</td></tr>
+    </tbody>
+  </table></div>
+  <p>
+    <strong>設定がすべてロググループ単位</strong>である点が実務上の要点です。
+    「保持期間を分けたい」「権限を分けたい」なら、ロググループを分けるしかありません。
+    同じロググループに複数のシステムのログを混ぜると、あとから分離できなくなります。
+  </p>
+  <div class="note stop">
+    <span class="lab">保持期間の既定は無期限</span>
+    <p>
+      ロググループを作った直後は保持期間が「失効しない」になっています。
+      放置すると保存料金が増え続けるので、<strong>作成時に必ず設定してください</strong>。
+      本番のアクセスログなら 90 日〜1 年、開発環境なら 14〜30 日あたりが目安です。
+    </p>
+  </div>
+
+  <h3 id="s3-bridge">ログを数値に変える 2 つの仕組み</h3>
+  <div class="tw"><table>
+    <thead><tr><th>仕組み</th><th>何をするか</th><th>使いどころ</th></tr></thead>
+    <tbody>
+      <tr><td>メトリクスフィルター</td><td>ログ中の文字列にマッチした回数をメトリクス化</td><td>「ERROR という文字が出た回数」でアラームを張る</td></tr>
+      <tr><td>サブスクリプションフィルター</td><td>ログをリアルタイムで他へ転送</td><td>Lambda で加工、OpenSearch へ、S3 へ</td></tr>
+    </tbody>
+  </table></div>
+  <p>
+    <strong>アラームはメトリクスにしか張れません。</strong>
+    ログの内容をトリガーに通知したい場合は、メトリクスフィルターでいったん数値に変換する必要があります。
+    これが図の左右をつなぐ橋にあたります。
+  </p>
+
+  <h3 id="s3-insights">Logs Insights</h3>
+  <p>
+    ロググループに対してクエリを打てます。ログを JSON 形式で出しておくと、
+    フィールド名でそのまま絞り込めるので、アクセスログの設計時点で JSON にしておく価値があります。
+  </p>
+  <pre><code>fields @timestamp, resource_path, status, responseLatency
+| filter status >= 500
+| stats count() by resource_path
+| sort count desc</code></pre>
+  <p>
+    ドメインやステージが同じロググループに混在している場合も、
+    <code>| filter domain = "ota-api.example.com"</code> のように絞り込めます。
+    ただし保持期間やアラームは分けられないので、あくまで応急処置です。
+  </p>
+  <div class="note warn">
+    <span class="lab">課金はスキャン量に対して</span>
+    <p>
+      クエリが読んだデータ量で課金されます。期間を絞ってから実行するのがコツで、
+      いきなり「過去 1 か月」で流すと想定外の請求になることがあります。
+    </p>
+  </div>
+</section>
+
+<!-- ============ 04 ============ -->
+<section id="s4">
+  <div class="h2rule"><span class="n">04</span><h2>アラーム</h2><span class="line"></span></div>
+
+  <p>メトリクスに閾値を設定し、3 つの状態を持ちます。</p>
+  <div class="tw"><table>
+    <thead><tr><th>状態</th><th>意味</th></tr></thead>
+    <tbody>
+      <tr><td><code>OK</code></td><td>閾値内</td></tr>
+      <tr><td><code>ALARM</code></td><td>閾値を超えた</td></tr>
+      <tr><td><code>INSUFFICIENT_DATA</code></td><td>データが足りない</td></tr>
+    </tbody>
+  </table></div>
+
+  <div class="note stop">
+    <span class="lab">欠落データの扱いが最大の落とし穴</span>
+    <p>
+      「エラー数が 5 件を超えたら通知」というアラームは、
+      <strong>エラーがゼロの時間帯はデータポイント自体が存在しません</strong>。
+      その結果 <code>INSUFFICIENT_DATA</code> になり、正常なのに警告扱いされます。
+      アラーム作成時の「欠落データの処理」を<strong>「良好（notBreaching）」</strong>に
+      設定しておくのが定番の対処です。
+    </p>
+  </div>
+
+  <h4>評価条件</h4>
+  <p>
+    「N 回中 M 回が閾値超えなら発報」という形で指定できます。
+    1 回のスパイクで叩き起こされないよう、<code>3回中2回</code> のような設定にするのが実用的です。
+    逆に即応が必要なものは <code>1回中1回</code> にします。
+  </p>
+
+  <h4>アラームの種類</h4>
+  <div class="tw"><table>
+    <thead><tr><th>種類</th><th>内容</th><th>使いどころ</th></tr></thead>
+    <tbody>
+      <tr><td>静的閾値</td><td>固定値と比較</td><td>基本形。5XX が 10 件以上、など</td></tr>
+      <tr><td>異常検出</td><td>過去の傾向から機械的に範囲を学習</td><td>時間帯で変動が大きいリクエスト数</td></tr>
+      <tr><td>メトリクス数式</td><td>複数メトリクスを計算した結果に対して</td><td>エラー率（5XX ÷ Count）で判定</td></tr>
+      <tr><td>複合アラーム</td><td>複数アラームの AND / OR</td><td>「エラー増加 かつ レイテンシ悪化」で発報</td></tr>
+    </tbody>
+  </table></div>
+  <p>
+    件数ではなく<strong>率</strong>で見たい場合はメトリクス数式が有効です。
+    アクセスが増えればエラー件数も自然に増えるため、固定件数の閾値は誤報の元になります。
+  </p>
+</section>
+
+<!-- ============ 05 ============ -->
+<section id="s5">
+  <div class="h2rule"><span class="n">05</span><h2>料金の勘所</h2><span class="line"></span></div>
+
+  <p>無料で取れるものと課金されるものの区別が、設計判断に直結します。</p>
+  <div class="tw"><table>
+    <thead><tr><th>項目</th><th>課金</th><th>備考</th></tr></thead>
+    <tbody>
+      <tr><td>AWS サービスの標準メトリクス</td><td class="free">無料</td><td>API 単位・ステージ単位はここ</td></tr>
+      <tr><td>詳細メトリクス（メソッド別など）</td><td class="paid">課金</td><td>カスタムメトリクス扱い。本数で効いてくる</td></tr>
+      <tr><td>カスタムメトリクス</td><td class="paid">課金</td><td>1 本ごとに月額</td></tr>
+      <tr><td>ログの取り込み量</td><td class="paid">課金</td><td><strong>費用の大半はここ</strong></td></tr>
+      <tr><td>ログの保存量</td><td class="paid">課金</td><td>保持期間に比例</td></tr>
+      <tr><td>Logs Insights のクエリ</td><td class="paid">課金</td><td>スキャンしたデータ量に応じて</td></tr>
+      <tr><td>ダッシュボード</td><td class="free">3 つまで無料</td><td>4 つ目から月額</td></tr>
+      <tr><td>アラーム</td><td class="free">10 個まで無料</td><td>高解像度アラームは別料金</td></tr>
+    </tbody>
+  </table></div>
+
+  <div class="note stop">
+    <span class="lab">典型的な浪費パターン</span>
+    <p>
+      ① 実行ログを <code>INFO</code> にしたまま本番運用（全リクエストの処理過程が記録される）<br>
+      ② データトレースを有効にしたまま戻し忘れ（リクエストボディが丸ごと記録される）<br>
+      ③ ロググループの保持期間が無期限のまま<br>
+      ④ 使っていない API で詳細メトリクスが有効<br>
+      いずれも設定を戻すだけで下がるので、まず現状を棚卸しする価値があります。
+    </p>
+  </div>
+
+  <p>
+    <strong>カスタムメトリクスは高カーディナリティに注意</strong>してください。
+    ディメンションに会員 ID やリクエスト ID のような値を入れると、値の種類の数だけメトリクスが生成され、
+    料金が一気に膨らみます。ディメンションに入れてよいのは「種類が有限で、集計軸として意味のあるもの」だけです。
+  </p>
+</section>
+
+<!-- ============ 06 ============ -->
+<section id="s6">
+  <div class="h2rule"><span class="n">06</span><h2>名前空間とメトリクス名</h2><span class="line"></span></div>
+
+  <h3 id="s6-apigw">API Gateway</h3>
+  <div class="tw"><table>
+    <caption>名前空間 AWS/ApiGateway</caption>
+    <thead><tr><th>メトリクス名</th><th>意味</th><th>推奨の統計</th></tr></thead>
+    <tbody>
+      <tr><td><code>Count</code></td><td>リクエスト数</td><td><code>Sum</code></td></tr>
+      <tr><td><code>4XXError</code></td><td>クライアント起因のエラー</td><td><code>Sum</code></td></tr>
+      <tr><td><code>5XXError</code></td><td>サーバー起因のエラー</td><td><code>Sum</code></td></tr>
+      <tr><td><code>Latency</code></td><td>受信から応答返却までの合計時間</td><td><code>p95</code> / <code>p99</code></td></tr>
+      <tr><td><code>IntegrationLatency</code></td><td>バックエンドの処理時間</td><td><code>p95</code></td></tr>
+      <tr><td><code>CacheHitCount</code></td><td>キャッシュから返した数</td><td><code>Sum</code></td></tr>
+      <tr><td><code>CacheMissCount</code></td><td>キャッシュを外した数</td><td><code>Sum</code></td></tr>
+      <tr><td><code>DataProcessed</code></td><td>転送バイト数（HTTP API のみ）</td><td><code>Sum</code></td></tr>
+    </tbody>
+  </table></div>
+  <p>
+    <strong><code>Latency</code> と <code>IntegrationLatency</code> の差</strong>が
+    API Gateway 自身のオーバーヘッドです。この 2 本を並べれば、
+    遅いのがバックエンドなのかゲートウェイなのかが即座に判別できます。
+  </p>
+  <p>
+    キャッシュを有効にしている API では <code>CacheHitCount</code> を必ず確認してください。
+    <strong>両方ゼロなら、クラスタ料金だけ払って全く効いていない</strong>状態です。
+    ステージでクラスタを起動しても、メソッド側で有効化しないとキャッシュされません。
+  </p>
+
+  <div class="tw"><table>
+    <caption>ディメンションの粒度</caption>
+    <thead><tr><th>ディメンション</th><th>粒度</th><th>課金</th><th>使いどころ</th></tr></thead>
+    <tbody>
+      <tr><td><code>{ApiName}</code></td><td>API 全体</td><td class="free">無料</td><td>ドメイン別ダッシュボード</td></tr>
+      <tr><td><code>{ApiName, Stage}</code></td><td>ステージ別</td><td class="free">無料</td><td>環境別・機能グループ別</td></tr>
+      <tr><td><code>{ApiName, Stage, Resource, Method}</code></td><td>エンドポイント別</td><td class="paid">課金</td><td>遅いエンドポイントの特定</td></tr>
+      <tr><td><code>{ApiId, Stage}</code></td><td>HTTP API 用</td><td class="free">無料</td><td>REST API では使われない</td></tr>
+    </tbody>
+  </table></div>
+  <div class="note">
+    <span class="lab">ドメイン名のディメンションは存在しない</span>
+    <p>
+      CloudWatch にドメイン単位の軸はありません。ドメイン別に分けられるのは、
+      <strong>1 ドメイン = 1 API になっている場合だけ</strong>です。
+      1 つの API に複数ドメインを向けると、メトリクスでは永久に分離できなくなります。
+      「1 ドメインにつき 1 API」を規約にしておくと、この分析可能性が守られます。
+    </p>
+  </div>
+
+  <h3 id="s6-other">他サービスの主な名前空間</h3>
+  <div class="tw"><table>
+    <thead><tr><th>名前空間</th><th>代表的なメトリクス</th><th>主なディメンション</th></tr></thead>
+    <tbody>
+      <tr><td><code>AWS/Lambda</code></td><td>Invocations, Errors, Duration, Throttles, ConcurrentExecutions</td><td>FunctionName, Resource</td></tr>
+      <tr><td><code>AWS/RDS</code></td><td>CPUUtilization, DatabaseConnections, FreeableMemory, ReadLatency</td><td>DBInstanceIdentifier</td></tr>
+      <tr><td><code>AWS/ApplicationELB</code></td><td>RequestCount, TargetResponseTime, HTTPCode_Target_5XX_Count</td><td>LoadBalancer, TargetGroup</td></tr>
+      <tr><td><code>AWS/DynamoDB</code></td><td>ConsumedReadCapacityUnits, ThrottledRequests</td><td>TableName, Operation</td></tr>
+      <tr><td><code>AWS/S3</code></td><td>BucketSizeBytes, NumberOfObjects</td><td>BucketName, StorageType</td></tr>
+      <tr><td><code>AWS/CloudFront</code></td><td>Requests, 4xxErrorRate, BytesDownloaded</td><td>DistributionId（us-east-1 のみ）</td></tr>
+      <tr><td><code>AWS/SQS</code></td><td>ApproximateAgeOfOldestMessage, NumberOfMessagesSent</td><td>QueueName</td></tr>
+      <tr><td><code>AWS/States</code></td><td>ExecutionsFailed, ExecutionTime</td><td>StateMachineArn</td></tr>
+      <tr><td><code>AWS/WAFV2</code></td><td>AllowedRequests, BlockedRequests</td><td>WebACL, Rule, Region</td></tr>
+      <tr><td><code>AWS/Usage</code></td><td>CallCount, ResourceCount</td><td>サービスクォータの使用状況</td></tr>
+    </tbody>
+  </table></div>
+  <p>
+    <code>AWS/Lambda</code> の <code>Throttles</code> と <code>ConcurrentExecutions</code> は、
+    API Gateway のメトリクスと並べて見ると効きます。
+    <strong>API Gateway で受け止めきれても Lambda 側で詰まる</strong>ことがあるためです。
+  </p>
+  <p>
+    <code>AWS/WAFV2</code> の <code>BlockedRequests</code> は、WAF 導入直後の誤検知監視に使います。
+    正常なリクエストがブロックされていないかを、カウントモードの段階で確認できます。
+  </p>
+
+  <h3 id="s6-custom">カスタム名前空間</h3>
+  <p>
+    アプリから自前のメトリクスを送ることもできます。<code>AWS/</code> で始まらない任意の名前が使えます。
+  </p>
+  <pre><code>MyCompany/Booking  →  ReservationCompleted, PaymentFailed</code></pre>
+  <p>
+    送る手段は <code>PutMetricData</code> API か、ログに埋め込む EMF（Embedded Metric Format）です。
+    EMF は「ログを出すついでにメトリクスも生成される」仕組みで、アプリ側の実装が軽くなります。
+  </p>
+  <p>
+    利点は、<strong>ビジネス指標を技術指標と同じダッシュボードに並べられる</strong>ことです。
+    「エラーは出ていないのに予約が止まっている」といった、技術メトリクスだけでは気づけない異常を検知できます。
+  </p>
+</section>
+
+<!-- ============ 07 ============ -->
+<section id="s7">
+  <div class="h2rule"><span class="n">07</span><h2>実例と探し方</h2><span class="line"></span></div>
+
+  <h3>探し方</h3>
+  <p>
+    <strong>コンソール</strong>では、CloudWatch → メトリクス → すべてのメトリクス。
+    名前空間 → ディメンションの組み合わせ → メトリクス、の順に絞り込むツリーになっています。
+  </p>
+  <p><strong>CLI</strong> なら、実際に存在するものだけが返るので確実です。</p>
+  <pre><code>aws cloudwatch list-metrics \
+  --namespace AWS/ApiGateway \
+  --dimensions Name=ApiName,Value=&lt;API名&gt; \
+  --region ap-northeast-1</code></pre>
+  <p>ドキュメントを読むより、この出力を見るほうが早く正確です。</p>
+
+  <h3>実例：本数の差が示すもの</h3>
+  <p>同じ API Gateway でも、設定によってメトリクスの本数が大きく変わります。</p>
+  <div class="tw"><table>
+    <thead><tr><th></th><th>シンプルな API</th><th>詳細メトリクス有効の API</th></tr></thead>
+    <tbody>
+      <tr><td>メトリクス本数</td><td>10 本前後</td><td>数百本</td></tr>
+      <tr><td>ディメンション</td><td><code>{ApiName}</code> と <code>{ApiName, Stage}</code> のみ</td><td>上記＋ <code>{ApiName, Stage, Resource, Method}</code></td></tr>
+      <tr><td>料金</td><td class="free">無料</td><td class="paid">エンドポイント数 × メソッド × 指標数で課金</td></tr>
+      <tr><td>分かること</td><td>API 全体・ステージ単位の傾向</td><td>どのエンドポイントが遅いか、まで特定できる</td></tr>
+    </tbody>
+  </table></div>
+  <p>
+    本数が膨らむ原因はもう 1 つあります。<strong>使っていないステージ</strong>です。
+    ドメインにマッピングされていない検証用ステージが残っていると、その分もメトリクスとして出続けます。
+    棚卸しの際は、ステージ一覧とドメインのマッピングを突き合わせてみてください。
+  </p>
+
+  <h3>ダッシュボードで API 別に分ける</h3>
+  <p>
+    検索式を使うと、API 名ごとに自動で線が分かれます。
+    <strong>新しい API を作っても勝手に追加される</strong>ので、メンテナンスが不要になります。
+  </p>
+  <pre><code>SEARCH('{AWS/ApiGateway,ApiName} MetricName="5XXError"', 'Sum', 3600)</code></pre>
+  <p>ステージまで分けたい場合はこちらです。</p>
+  <pre><code>SEARCH('{AWS/ApiGateway,ApiName,Stage} MetricName="5XXError"', 'Sum', 3600)</code></pre>
+  <p>
+    個別に指定して <code>label</code> を付ける方法もあります。
+    凡例に <strong>API 名ではなくドメイン名を出せる</strong>ので、
+    API 名を知らない人でも読めるダッシュボードになります。
+  </p>
+  <pre><code>"metrics": [
+  [ "AWS/ApiGateway", "5XXError", "ApiName", "&lt;API名&gt;", { "label": "ota-api" } ]
+],
+"stat": "Sum",
+"period": 3600</code></pre>
+
+  <h3>ダッシュボードの組み立て方</h3>
+  <p>指標を重ねるより、同じ並び順で縦に積むほうが読み解けます。</p>
+  <ol class="steps">
+    <li><b>リクエスト数</b><p><code>Count</code> を <code>Sum</code> で。まず全体の流量を把握する。</p></li>
+    <li><b>5XX エラー</b><p>サーバー起因。上の段と時間軸が揃っているので、流量増加が原因かどうか目で追える。</p></li>
+    <li><b>4XX エラー</b><p>クライアント起因。認証切れや仕様変更の検知に。</p></li>
+    <li><b>レイテンシ</b><p><code>Latency</code> を <code>p95</code> で。<code>IntegrationLatency</code> も重ねると切り分けが早い。</p></li>
+  </ol>
+  <div class="note warn">
+    <span class="lab">2 軸グラフの副作用</span>
+    <p>
+      桁の違う指標を左右の軸で重ねると、片方が異常値でも目盛りに埋もれて気づきにくくなります。
+      指標ごとにウィジェットを分けるほうが実用的です。
+    </p>
+  </div>
+
+  <h4>便利なウィジェット</h4>
+  <div class="tw"><table>
+    <thead><tr><th>やりたいこと</th><th>設定</th></tr></thead>
+    <tbody>
+      <tr><td>異常値の基準線を引く</td><td>ウィジェットのオプション →「水平方向の注釈」</td></tr>
+      <tr><td>アラーム状態を色で出す</td><td>「アラーム」ウィジェットを追加</td></tr>
+      <tr><td>ログの検索結果を貼る</td><td>Logs Insights でクエリ実行 →「ダッシュボードに追加」</td></tr>
+      <tr><td>説明文を入れる</td><td>「テキスト」ウィジェット（Markdown 可）</td></tr>
+    </tbody>
+  </table></div>
+  <p>
+    テキストウィジェットは地味に有効です。冒頭に「このグラフの見方」「異常時の連絡先」を書いておくと、
+    当番が代わっても迷いません。
+  </p>
+</section>
+
+<footer>
+  CloudWatch の仕組み — 内部リファレンス vol.2<br>
+  料金・保持期間・コンソールの画面構成は変わることがあるため、最終判断は公式ドキュメントで確認してください。
+</footer>
+
+</main>
+
+<script>
+(function(){
+  var links = Array.prototype.slice.call(document.querySelectorAll('.directory a[href^="#"]'));
+  var map = {};
+  links.forEach(function(a){
+    var el = document.querySelector(a.getAttribute('href'));
+    if(el){ map[el.id] = a; }
+  });
+  var targets = Object.keys(map).map(function(id){ return document.getElementById(id); });
+  if(!('IntersectionObserver' in window) || !targets.length) return;
+
+  var visible = {};
+  var obs = new IntersectionObserver(function(entries){
+    entries.forEach(function(e){ visible[e.target.id] = e.isIntersecting; });
+    var current = null;
+    targets.forEach(function(t){ if(visible[t.id] && !current) current = t.id; });
+    if(!current) return;
+    links.forEach(function(a){ a.classList.remove('on'); });
+    map[current].classList.add('on');
+  }, { rootMargin: '-10% 0px -70% 0px', threshold: 0 });
+
+  targets.forEach(function(t){ obs.observe(t); });
+})();
+</script>
+</body>
+</html>

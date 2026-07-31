@@ -276,11 +276,17 @@ footer{
   <div class="dir-sep">API GATEWAY</div>
   <ol start="4">
     <li><a href="#s4"><span class="num">04</span>できることと種類</a></li>
-    <li><a href="#s5"><span class="num">05</span>入り口の分け方</a>
+    <li><a href="#s45"><span class="num">05</span>主要な設定の詳細</a>
+      <a class="sub" href="#s45-log">ログと監視</a>
+      <a class="sub" href="#s45-thr">スロットリング</a>
+      <a class="sub" href="#s45-sec">保護と公開範囲</a>
+      <a class="sub" href="#s45-ops">運用と管理</a>
+    </li>
+    <li><a href="#s5"><span class="num">06</span>入り口の分け方</a>
       <a class="sub" href="#s5-1">グループ分離</a>
       <a class="sub" href="#s5-2">設定手順</a>
     </li>
-    <li><a href="#s6"><span class="num">06</span>現状と次の一手</a></li>
+    <li><a href="#s6"><span class="num">07</span>現状と次の一手</a></li>
   </ol>
 </nav>
 
@@ -718,8 +724,318 @@ footer{
 </section>
 
 <!-- ============ 05 ============ -->
+<section id="s45">
+  <div class="h2rule"><span class="n">05</span><h2>主要な設定の詳細</h2><span class="line"></span></div>
+
+  <p>
+    前章の一覧に出てきた設定を、ひとつずつ掘り下げます。
+    どれも「既定のままだと何も守られていない」ものばかりで、
+    <strong>作った時点では有効になっていない</strong>という共通点があります。
+  </p>
+
+  <h3 id="s45-log">ログと監視</h3>
+
+  <h4>アクセスログ</h4>
+  <p>
+    リクエスト 1 件につき 1 行、指定した CloudWatch ロググループへ出力されます。
+    ステージ →「ログとトレース」で有効化し、<strong>出力先とフォーマットを自分で決める</strong>のが特徴です。
+    フォーマットは JSON にしておくと、CloudWatch Logs Insights で構造化クエリが打てます。
+  </p>
+  <div class="tw"><table>
+    <caption>よく使う $context 変数</caption>
+    <thead><tr><th>変数</th><th>入る値</th><th>用途</th></tr></thead>
+    <tbody>
+      <tr><td><code>$context.requestId</code></td><td>リクエスト固有の ID</td><td>問い合わせ対応で 1 件を特定する</td></tr>
+      <tr><td><code>$context.domainName</code></td><td>叩かれたドメイン名</td><td><strong>複数ドメインが同じ API を指す場合の切り分け</strong></td></tr>
+      <tr><td><code>$context.stage</code></td><td>ステージ名</td><td>ステージが機能グループを兼ねている場合の切り分け</td></tr>
+      <tr><td><code>$context.resourcePath</code></td><td><code>/orders/{id}</code> 形式のパス</td><td>エンドポイント別の集計</td></tr>
+      <tr><td><code>$context.status</code></td><td>API Gateway が返したステータス</td><td>4xx / 5xx の検知</td></tr>
+      <tr><td><code>$context.integration.status</code></td><td>バックエンドが返したステータス</td><td>API Gateway 起因か Lambda 起因かの切り分け</td></tr>
+      <tr><td><code>$context.responseLatency</code></td><td>全体の所要時間（ms）</td><td>遅延の把握</td></tr>
+      <tr><td><code>$context.integrationLatency</code></td><td>バックエンドの所要時間（ms）</td><td>上との差が API Gateway 側のオーバーヘッド</td></tr>
+      <tr><td><code>$context.identity.sourceIp</code></td><td>クライアント IP</td><td>不審なアクセス元の特定</td></tr>
+      <tr><td><code>$context.identity.apiKey</code></td><td>使われた API キー</td><td>利用者別の集計</td></tr>
+      <tr><td><code>$context.error.message</code></td><td>エラー内容</td><td>認証失敗やスロットリングの理由</td></tr>
+    </tbody>
+  </table></div>
+  <p>
+    <code>responseLatency</code> と <code>integrationLatency</code> を両方入れておくのがコツです。
+    差分がそのまま API Gateway 側のオーバーヘッドになるので、遅いときにどちらを直すべきか即座に分かります。
+  </p>
+  <div class="note warn">
+    <span class="lab">ロググループの置き場所</span>
+    <p>
+      出力先は自由に指定できてしまうため、Lambda 用の名前空間に混ざってしまうことがあります。
+      <code>/aws/apigateway/{システム}/{API}-{ステージ}/access</code> のように
+      <strong>API Gateway 用の階層を切っておく</strong>と、権限設計も保持期間の管理も楽になります。
+      保持期間は既定で「無期限」なので、作成後に必ず設定してください。
+    </p>
+  </div>
+
+  <h4>実行ログ</h4>
+  <p>
+    アクセスログが「結果の 1 行」なのに対し、実行ログは <strong>API Gateway の内部処理を逐一記録</strong>したものです。
+    オーソライザーの判定、マッピングテンプレートの適用、統合先への送信内容などが出ます。
+    出力先は <code>API-Gateway-Execution-Logs_{api-id}/{stage}</code> に固定され、選べません。
+  </p>
+  <div class="tw"><table>
+    <thead><tr><th>レベル</th><th>出力内容</th><th>使いどころ</th></tr></thead>
+    <tbody>
+      <tr><td>OFF</td><td>出力なし</td><td>既定値。何も追えない</td></tr>
+      <tr><td>ERROR</td><td>エラー時のみ</td><td><strong>本番の推奨設定</strong></td></tr>
+      <tr><td>INFO</td><td>全リクエストの処理過程</td><td>開発・調査時</td></tr>
+    </tbody>
+  </table></div>
+  <div class="note stop">
+    <span class="lab">データトレースの取り扱い</span>
+    <p>
+      「完全なリクエストとレスポンスのデータをログに記録」（<code>dataTraceEnabled</code>）を有効にすると、
+      <strong>リクエストボディとヘッダーがそのままログに残ります</strong>。
+      個人情報、認証トークン、決済情報が平文で CloudWatch に蓄積されるため、
+      本番環境では必ずオフにしてください。調査で一時的に入れた場合は、戻し忘れに注意が必要です。
+    </p>
+  </div>
+
+  <h4>詳細メトリクス</h4>
+  <p>
+    既定では API 単位の <code>Count</code> / <code>4XXError</code> / <code>5XXError</code> /
+    <code>Latency</code> しか取れません。有効化すると<strong>メソッド単位</strong>で同じ指標が取れるようになり、
+    「どのエンドポイントが遅いか」が特定できます。
+    ただしメトリクス数が一気に増えるため、CloudWatch のカスタムメトリクス料金がかかります。
+    エンドポイントが多い API では、有効化前にコストを見積もってください。
+  </p>
+
+  <h4>X-Ray トレース</h4>
+  <p>
+    API Gateway → Lambda → DynamoDB といった<strong>1 リクエストの旅路</strong>を可視化します。
+    どのサービスで何ミリ秒かかったかがグラフで見えるため、
+    分散構成の遅延調査では実行ログより早く原因にたどり着けます。常時有効にする必要はなく、
+    サンプリング率を絞って回すのが実用的です。
+  </p>
+
+  <h3 id="s45-thr">スロットリング</h3>
+  <p>
+    <strong>1 秒あたり何回までリクエストを受け付けるか</strong>の上限です。
+    超過分には 429 Too Many Requests が返り、バックエンドには届きません。
+    トークンバケットという方式で動いています。
+  </p>
+
+  <figure>
+    <svg viewBox="0 0 680 310" role="img" aria-label="スロットリングのトークンバケット方式。毎秒レート分のトークンが補充され、バケツの容量がバースト上限にあたる">
+      <defs><marker id="ar6" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#7C8880" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+      <g class="f-green"><rect x="250" y="30" width="180" height="44" rx="8"/>
+        <text class="d-th" x="340" y="52" text-anchor="middle" dominant-baseline="central">毎秒レート分を補充</text></g>
+      <line x1="340" y1="78" x2="340" y2="96" class="arr" marker-end="url(#ar6)"/>
+      <g class="f-sand"><rect x="250" y="100" width="180" height="170" rx="8"/>
+        <text class="d-th" x="340" y="124" text-anchor="middle" dominant-baseline="central">バケツ</text>
+        <text class="d-ts" x="340" y="143" text-anchor="middle" dominant-baseline="central">容量＝バースト</text></g>
+      <circle cx="277" cy="175" r="9" fill="#A8813C"/><circle cx="309" cy="175" r="9" fill="#A8813C"/><circle cx="341" cy="175" r="9" fill="#A8813C"/><circle cx="373" cy="175" r="9" fill="#A8813C"/><circle cx="405" cy="175" r="9" fill="#A8813C"/>
+      <circle cx="277" cy="207" r="9" fill="#A8813C"/><circle cx="309" cy="207" r="9" fill="#A8813C"/><circle cx="341" cy="207" r="9" fill="#A8813C"/><circle cx="373" cy="207" r="9" fill="#A8813C"/><circle cx="405" cy="207" r="9" fill="#A8813C"/>
+      <circle cx="277" cy="239" r="9" fill="#A8813C"/><circle cx="309" cy="239" r="9" fill="#A8813C"/><circle cx="341" cy="239" r="9" fill="#A8813C"/><circle cx="373" cy="239" r="9" fill="#A8813C"/><circle cx="405" cy="239" r="9" fill="#A8813C"/>
+      <g class="f-gray"><rect x="40" y="128" width="100" height="44" rx="8"/>
+        <text class="d-th" x="90" y="150" text-anchor="middle" dominant-baseline="central">リクエスト</text></g>
+      <line x1="144" y1="150" x2="246" y2="150" class="arr" marker-end="url(#ar6)"/>
+      <line x1="434" y1="150" x2="496" y2="150" class="arr" marker-end="url(#ar6)"/>
+      <g class="f-green"><rect x="500" y="128" width="140" height="44" rx="8"/>
+        <text class="d-th" x="570" y="150" text-anchor="middle" dominant-baseline="central">通過</text></g>
+      <line x1="434" y1="218" x2="496" y2="218" class="arr" marker-end="url(#ar6)"/>
+      <g class="f-clay"><rect x="500" y="196" width="140" height="44" rx="8"/>
+        <text class="d-th" x="570" y="218" text-anchor="middle" dominant-baseline="central">空なら 429</text></g>
+    </svg>
+    <figcaption>リクエスト 1 件がトークン 1 個を消費する。バケツが空なら 429。</figcaption>
+  </figure>
+
+  <div class="tw"><table>
+    <thead><tr><th>設定値</th><th>意味</th><th>効く場面</th></tr></thead>
+    <tbody>
+      <tr><td>レート（rps）</td><td>毎秒どれだけトークンが補充されるか</td><td>平常時の上限</td></tr>
+      <tr><td>バースト</td><td>バケツに貯められるトークンの最大数</td><td>一瞬のピーク</td></tr>
+    </tbody>
+  </table></div>
+  <p>
+    レート 100・バースト 500 なら、平常は毎秒 100 件まで。暇な時間が続いてバケツが満タンなら、
+    一瞬だけ 500 件を受け止められます。貯金を使い切ったあとは毎秒 100 件のペースに戻ります。
+    <strong>アクセスが均されないシステムほどバーストを大きめに</strong>します。
+  </p>
+
+  <h4>4 つの階層と優先順位</h4>
+  <div class="tw"><table>
+    <thead><tr><th>階層</th><th>設定場所</th><th>効き方</th></tr></thead>
+    <tbody>
+      <tr><td>アカウント</td><td>リージョンごとの上限（既定 10,000 rps / バースト 5,000）</td><td><strong>全 API で共有</strong>。すべての上限</td></tr>
+      <tr><td>ステージ</td><td>ステージの詳細</td><td>そのステージ全体の既定値</td></tr>
+      <tr><td>メソッド</td><td>ステージ内のメソッド設定</td><td>特定エンドポイントだけ上書き</td></tr>
+      <tr><td>使用量プラン</td><td>使用量プラン＋API キー</td><td>利用者ごとに個別の上限とクォータ</td></tr>
+    </tbody>
+  </table></div>
+  <p>
+    実際に効くのは<strong>これらのうち最も厳しい値</strong>です。メソッド設定はステージ設定を上書きし、
+    使用量プランは API キー単位で別枠を持ちます。
+  </p>
+
+  <div class="note stop">
+    <span class="lab">10,000 は「無制限」と同じ</span>
+    <p>
+      10,000 rps はアカウントのリージョン上限そのものです。この値が入っているのは
+      <strong>実質的に制限していない</strong>状態で、テンプレートの既定値がそのまま残っているケースがほとんどです。
+      この枠はアカウント全体で共有されるため、1 本の API が使い切ると、
+      関係のない他の API まで 429 を返し始めます。しかも上限が無ければ止める手段がありません。
+      各 API に個別の上限を入れておけば、暴走した API だけが 429 になり、他は無傷で済みます。
+    </p>
+  </div>
+
+  <h4>値の決め方</h4>
+  <p>
+    勘で決める必要はありません。CloudWatch の <code>AWS/ApiGateway</code> の <code>Count</code> を
+    API 名ごとに <strong>1 分間の最大値</strong>で見て、60 で割れば実測のピーク rps が出ます。
+    そこに 3〜5 倍の余裕を持たせた値が目安です。実測ピークが 20 rps なら、
+    レート 100・バースト 200 で十分ということになります。
+  </p>
+
+  <h3 id="s45-sec">保護と公開範囲</h3>
+
+  <h4>WAF（Web ACL）</h4>
+  <p>
+    ステージに Web ACL を関連付けると、リクエストが API Gateway に届く前に検査されます。
+    SQL インジェクション、XSS、既知の悪性 IP、国別ブロック、レート制限などをルールで定義します。
+    AWS 管理ルールグループを使えば、自前でルールを書かずに一般的な攻撃を防げます。
+  </p>
+  <div class="note warn">
+    <span class="lab">導入はカウントモードから</span>
+    <p>
+      いきなりブロックモードで入れると、正常なリクエストが誤検知で弾かれる可能性があります。
+      まず<strong>カウントモード</strong>で数日運用し、CloudWatch のサンプルログで
+      「本来通すべきものが引っかかっていないか」を確認してからブロックに切り替えてください。
+    </p>
+  </div>
+
+  <h4>リソースポリシー</h4>
+  <p>
+    API 単位で「誰からのアクセスを許すか」を JSON で定義します。
+    セキュリティグループのような役割で、次のような制御ができます。
+  </p>
+  <ul>
+    <li>特定の送信元 IP レンジからのみ許可（社内 NAT の IP など）</li>
+    <li>特定の VPC エンドポイント経由のみ許可（Private API と組み合わせる）</li>
+    <li>特定の AWS アカウントや IAM プリンシパルのみ許可</li>
+  </ul>
+  <p>WAF より手前で効き、条件がシンプルな場合はこちらのほうが確実かつ無料です。</p>
+
+  <h4>既定エンドポイントの無効化</h4>
+  <p>
+    カスタムドメインを設定しても、<code>https://{api-id}.execute-api.{region}.amazonaws.com/{stage}</code>
+    という既定の URL は生きたままです。<code>disableExecuteApiEndpoint</code> を有効にすると、この経路を塞げます。
+  </p>
+  <div class="note stop">
+    <span class="lab">迂回されると防御が効かない</span>
+    <p>
+      既定エンドポイントが開いていると、<strong>カスタムドメインに掛けた保護を素通りされます</strong>。
+      特にドメイン側で相互 TLS や TLS バージョンを制御している場合、その制約が一切効きません。
+      API ID が推測しにくいことに依存するのは防御とは言えないので、
+      カスタムドメイン運用に切り替えたら必ず無効化してください。
+    </p>
+  </div>
+
+  <h4>TLS セキュリティポリシー</h4>
+  <p>
+    カスタムドメインごとに、受け付ける TLS のバージョンを指定します。
+    <code>TLS_1_0</code> は古い暗号スイートを含むため、現在は <strong>TLS 1.2 以上が推奨</strong>です。
+    引き上げる前に、古い端末や社内バッチなど TLS 1.0 でしか繋げないクライアントがいないか、
+    アクセスログの User-Agent で確認してください。
+  </p>
+
+  <h4>オーソライザー</h4>
+  <div class="tw"><table>
+    <thead><tr><th>種類</th><th>判定するもの</th><th>使いどころ</th></tr></thead>
+    <tbody>
+      <tr><td>IAM</td><td>SigV4 署名</td><td>AWS 内部のサービス間通信</td></tr>
+      <tr><td>Cognito</td><td>Cognito ユーザープールのトークン</td><td>自社アプリのログインユーザー</td></tr>
+      <tr><td>Lambda オーソライザー</td><td>自前のロジック</td><td>独自トークン、外部 IdP、複雑な条件</td></tr>
+      <tr><td>API キー</td><td>x-api-key ヘッダー</td><td>利用者の識別と流量管理（認証ではない）</td></tr>
+    </tbody>
+  </table></div>
+  <p>
+    <strong>API キーは認証手段ではありません</strong>。ヘッダーに載るだけで漏れやすいため、
+    「誰が使っているかを数える」「利用者ごとに流量を分ける」ための識別子として扱ってください。
+    Lambda オーソライザーは判定結果をキャッシュできるので、TTL を設定して呼び出し回数を抑えます。
+  </p>
+
+  <h3 id="s45-ops">運用と管理</h3>
+
+  <h4>キャッシュ</h4>
+  <p>
+    ステージ単位で有効化し、0.5GB〜237GB の容量を選びます。同じリクエストへの応答を保持し、
+    バックエンドを叩かずに返します。マスタデータの参照など、更新頻度が低く読み取りが多い API で効果的です。
+  </p>
+  <div class="note warn">
+    <span class="lab">有効化しただけでは効かない</span>
+    <p>
+      ステージでキャッシュクラスタを起動しても、<strong>メソッド側で個別に有効化しないとキャッシュされません</strong>。
+      クラスタだけ立っている状態は、料金だけ発生して効果ゼロです。
+      キャッシュは<strong>起動している間ずっと時間課金</strong>されるため、使っていないなら停止してください。
+      また、認証結果によって内容が変わる API では、キャッシュキーにヘッダーを含めないと
+      別ユーザーの応答を返す事故につながります。
+    </p>
+  </div>
+
+  <h4>タグ</h4>
+  <p>
+    API 単位で付けるラベルです。Cost Explorer でコスト配分キーとして有効化すると、
+    タグ別の費用内訳が見えるようになります。<strong>軸を分けて持つ</strong>のがコツです。
+  </p>
+  <div class="tw"><table>
+    <thead><tr><th>キー</th><th>値の例</th><th>これで何が分かるか</th></tr></thead>
+    <tbody>
+      <tr><td><code>Env</code></td><td>prod / stg / dev</td><td>環境ごとの費用と棚卸し</td></tr>
+      <tr><td><code>System</code></td><td>commapi</td><td>システム単位の集計</td></tr>
+      <tr><td><code>Owner</code></td><td>担当者名</td><td>問い合わせ先。放置リソースの持ち主特定</td></tr>
+      <tr><td><code>Name</code></td><td>API 名</td><td>コンソール上の識別</td></tr>
+    </tbody>
+  </table></div>
+  <p>
+    <code>Env</code> と <code>System</code> を分けて持てば、「開発環境全体」と「特定機能」の
+    両方向から集計できます。ドメイン名に環境と機能が混ざっていても、タグ側で整理できます。
+  </p>
+
+  <h4>IAM 権限</h4>
+  <p>
+    API Gateway のリソース ARN は <code>arn:aws:apigateway:{region}::/restapis/{api-id}/*</code> の形です。
+    ポリシーのリソースをここまで絞れば、<strong>チームごとにデプロイできる API を限定</strong>できます。
+    絞っていないと、担当外の API を誤ってデプロイしたり削除したりする事故が起きます。
+  </p>
+  <p>
+    なお <code>apigateway:GET</code> は参照、<code>apigateway:POST</code> はデプロイ作成、
+    <code>apigateway:PATCH</code> は設定変更に対応します。読み取り専用の権限を配るときはこの単位で考えます。
+  </p>
+
+  <h4>ステージ変数</h4>
+  <p>
+    ステージごとに値を持てる変数です。統合先の Lambda エイリアスを
+    <code>${stageVariables.alias}</code> のように書いておけば、
+    <strong>同じ API 定義のまま、ステージによって呼び出す Lambda を切り替え</strong>られます。
+    環境や機能グループをステージで分けている場合、この仕組みが土台になります。
+  </p>
+
+  <h4>カナリアリリース</h4>
+  <p>
+    新しいデプロイに対して、トラフィックの一部（例：5%）だけを流す機能です。
+    メトリクスを見ながら比率を上げていき、問題があれば即座に戻せます。
+    ステージ変数もカナリア側だけ別の値を持てるため、新旧の Lambda を並走させられます。
+  </p>
+
+  <div class="note">
+    <span class="lab">まとめ</span>
+    <p>
+      ここまでの設定はすべて<strong>ステージまたは API 単位</strong>で、作成直後は無効か既定値です。
+      新しく API を作ったら、少なくとも「アクセスログ」「実行ログ ERROR」「スロットリング」「タグ」の
+      4 点は必ず入れる、という運用ルールにしておくと事故が減ります。
+    </p>
+  </div>
+</section>
+
+<!-- ============ 06 ============ -->
 <section id="s5">
-  <div class="h2rule"><span class="n">05</span><h2>入り口の分け方</h2><span class="line"></span></div>
+  <div class="h2rule"><span class="n">06</span><h2>入り口の分け方</h2><span class="line"></span></div>
 
   <p>入り口は 3 つの意味で分けられます。</p>
 
@@ -858,7 +1174,7 @@ api.example.com/users/*   →  会員API（×グループ）の prod ステー�
 
 <!-- ============ 06 ============ -->
 <section id="s6">
-  <div class="h2rule"><span class="n">06</span><h2>現状と次の一手</h2><span class="line"></span></div>
+  <div class="h2rule"><span class="n">07</span><h2>現状と次の一手</h2><span class="line"></span></div>
 
   <p>現状は「カスタムドメイン 2 つ、API 2 つ」で 1 対 1 に対応している構成です。</p>
 

@@ -265,7 +265,10 @@ footer{
       <a class="sub" href="#s6-other">他サービス</a>
       <a class="sub" href="#s6-custom">カスタム</a>
     </li>
-    <li><a href="#s7"><span class="num">07</span>実例と探し方</a></li>
+    <li><a href="#s7"><span class="num">07</span>実例と探し方</a>
+      <a class="sub" href="#s7-formula">メトリクス数式</a>
+      <a class="sub" href="#s7-dash">ダッシュボード</a>
+    </li>
   </ol>
 </nav>
 
@@ -702,7 +705,111 @@ footer{
     棚卸しの際は、ステージ一覧とドメインのマッピングを突き合わせてみてください。
   </p>
 
-  <h3>ダッシュボードで API 別に分ける</h3>
+  <h3 id="s7-formula">メトリクス数式の読み方</h3>
+  <p>
+    ダッシュボードのウィジェットは、メトリクスを直接指定するほかに<strong>数式</strong>で書けます。
+    既存のダッシュボードを引き継いだときは、まずこれを読み解くところから始まります。
+    実際によく見かける形がこちらです。
+  </p>
+  <pre><code>SUM(SEARCH('{AWS/ApiGateway,ApiName} ("5XXError")', 'Sum', 3600))</code></pre>
+  <div class="tw"><table>
+    <caption>分解すると</caption>
+    <thead><tr><th>部分</th><th>何をしているか</th></tr></thead>
+    <tbody>
+      <tr><td><code>SEARCH(...)</code></td><td>条件に合うメトリクスをすべて探し、<strong>それぞれ 1 本の線として返す</strong></td></tr>
+      <tr><td><code>{AWS/ApiGateway,ApiName}</code></td><td>名前空間が API Gateway で、ディメンションが <code>ApiName</code> だけのもの</td></tr>
+      <tr><td><code>("5XXError")</code></td><td>メトリクス名に 5XXError を含むもの</td></tr>
+      <tr><td><code>'Sum', 3600</code></td><td>各線を 1 時間ごとの合計で描く</td></tr>
+      <tr><td><code>SUM(...)</code></td><td><strong>返ってきた複数の線を、1 本に足し合わせる</strong></td></tr>
+    </tbody>
+  </table></div>
+
+  <figure>
+    <svg viewBox="0 0 680 300" role="img" aria-label="SEARCH関数が返す複数の線をSUM関数が1本に合算し、内訳が分からなくなる仕組み">
+      <defs><marker id="ar3" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#79838C" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+      <rect x="40" y="30" width="210" height="230" rx="8" fill="none" stroke="#79838C" stroke-width="1" stroke-dasharray="5 4"/>
+      <text class="d-th" x="145" y="52" text-anchor="middle" dominant-baseline="central">SEARCH の結果</text>
+      <g class="f-plum"><rect x="55" y="70" width="180" height="38" rx="6"/>
+        <text class="d-t" x="145" y="89" text-anchor="middle" dominant-baseline="central">API A の線</text></g>
+      <g class="f-plum"><rect x="55" y="116" width="180" height="38" rx="6"/>
+        <text class="d-t" x="145" y="135" text-anchor="middle" dominant-baseline="central">API B の線</text></g>
+      <g class="f-plum"><rect x="55" y="162" width="180" height="38" rx="6"/>
+        <text class="d-t" x="145" y="181" text-anchor="middle" dominant-baseline="central">API C の線</text></g>
+      <g class="f-plum"><rect x="55" y="208" width="180" height="38" rx="6"/>
+        <text class="d-t" x="145" y="227" text-anchor="middle" dominant-baseline="central">ほか全部の線</text></g>
+      <line x1="254" y1="145" x2="300" y2="145" class="arr" marker-end="url(#ar3)"/>
+      <g class="f-clay"><rect x="305" y="118" width="110" height="54" rx="8"/>
+        <text class="d-th" x="360" y="138" text-anchor="middle" dominant-baseline="central">SUM()</text>
+        <text class="d-ts" x="360" y="157" text-anchor="middle" dominant-baseline="central">合算</text></g>
+      <line x1="419" y1="145" x2="460" y2="145" class="arr" marker-end="url(#ar3)"/>
+      <g class="f-gray"><rect x="465" y="118" width="175" height="54" rx="8"/>
+        <text class="d-th" x="552" y="138" text-anchor="middle" dominant-baseline="central">1 本の線</text>
+        <text class="d-ts" x="552" y="157" text-anchor="middle" dominant-baseline="central">内訳は消える</text></g>
+    </svg>
+    <figcaption>SEARCH の時点では API ごとに分かれているのに、外側の SUM が全部を潰している。</figcaption>
+  </figure>
+
+  <div class="note stop">
+    <span class="lab">「分析しにくい」の正体</span>
+    <p>
+      グラフが 1 本しか出ず、どの API が原因か分からない——という症状のほとんどは、
+      <strong>この外側の <code>SUM()</code> が原因</strong>です。
+      直し方は単純で、<code>SUM()</code> を外すだけ。それだけで API ごとに線が分かれ、
+      凡例に名前が出ます。
+    </p>
+  </div>
+
+  <h4>SEARCH は自動で追従する</h4>
+  <p>
+    <code>SEARCH</code> は実行のたびに条件に合うものを探し直します。つまり
+    <strong>新しい API を作れば自動的に線が増え、削除すれば自動的に消えます</strong>。
+    ウィジェットのメンテナンスが不要という意味で、本来は優れた仕組みです。
+    問題は集約の仕方だけで、探す部分は触る必要がありません。
+  </p>
+
+  <h4>ディメンションは完全一致で照合される</h4>
+  <p>
+    <code>{AWS/ApiGateway,ApiName}</code> は、<strong>ディメンションが <code>ApiName</code> だけの
+    メトリクスにしか一致しません</strong>。<code>{ApiName, Stage}</code> のステージ別メトリクスは含まれないため、
+    二重計上は起きません。
+  </p>
+  <p>裏を返せば、ステージ別の内訳はこの式では見えません。必要なら指定を変えます。</p>
+  <pre><code>SEARCH('{AWS/ApiGateway,ApiName,Stage} MetricName="5XXError"', 'Sum', 3600)</code></pre>
+  <p>
+    なお <code>("5XXError")</code> は「メトリクス名に含まれる」という緩い検索です。
+    <code>MetricName="5XXError"</code> と書けば完全一致になり、意図が明確になります。
+  </p>
+
+  <h4>内訳と合計を両方見たい場合</h4>
+  <pre><code>"metrics": [
+  [ { "expression": "SEARCH('{AWS/ApiGateway,ApiName} MetricName=\"5XXError\"', 'Sum', 3600)", "id": "e1" } ],
+  [ { "expression": "SUM(e1)", "label": "全API合計", "id": "e2" } ]
+]</code></pre>
+  <p>
+    内訳の線と合計の線が同時に描かれます。ただし線が増えて見づらくなるので、
+    合計は別ウィジェットに分けるほうが実用的です。
+  </p>
+
+  <h4>よく使う数式関数</h4>
+  <div class="tw"><table>
+    <thead><tr><th>関数</th><th>何をするか</th><th>使いどころ</th></tr></thead>
+    <tbody>
+      <tr><td><code>SEARCH</code></td><td>条件に合うメトリクスを複数返す</td><td>API 別・インスタンス別に自動で線を分ける</td></tr>
+      <tr><td><code>SUM</code></td><td>複数の線を足して 1 本に</td><td>全体の総数を出す（内訳は消える）</td></tr>
+      <tr><td><code>AVG</code></td><td>複数の線を平均して 1 本に</td><td>クラスタ全体の平均 CPU など</td></tr>
+      <tr><td><code>METRICS()</code></td><td>そのウィジェットの全メトリクス</td><td><code>SUM(METRICS())</code> で合計行を足す</td></tr>
+      <tr><td><code>FILL</code></td><td>欠落データを埋める</td><td>ゼロ件の時間帯を 0 として描く</td></tr>
+      <tr><td><code>RATE</code></td><td>秒あたりの変化量に変換</td><td>累積値を流量として見る</td></tr>
+      <tr><td><code>a/b*100</code></td><td>四則演算</td><td><strong>エラー率</strong>（5XX ÷ Count）で判定する</td></tr>
+      <tr><td><code>ANOMALY_DETECTION_BAND</code></td><td>正常範囲の帯を描く</td><td>時間帯変動が大きい指標の異常検知</td></tr>
+    </tbody>
+  </table></div>
+  <p>
+    件数ではなく<strong>率</strong>で見たいときは四則演算が効きます。
+    アクセスが増えればエラー件数も自然に増えるため、固定件数の閾値は誤報の元になるからです。
+  </p>
+
+  <h3 id="s7-dash">ダッシュボードで API 別に分ける</h3>
   <p>
     検索式を使うと、API 名ごとに自動で線が分かれます。
     <strong>新しい API を作っても勝手に追加される</strong>ので、メンテナンスが不要になります。

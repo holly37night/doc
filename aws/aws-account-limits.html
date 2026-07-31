@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>アカウントで共有されるもの — 構成メモ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@700&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  color-scheme: light;
+  --paper:#EDEBF0;
+  --card:#F7F6F9;
+  --ink:#1A1620;
+  --ink-2:#4C4653;
+  --ink-3:#7D7686;
+  --rule:#CBC6D2;
+  --rule-soft:#DEDAE3;
+  --sign:#4B3162;
+  --sign-2:#6B4A87;
+  --sign-ink:#EDE8F1;
+  --amber:#8A5A12;
+  --amber-bg:#F3EBDA;
+  --danger:#7E3229;
+  --danger-bg:#F2E2DE;
+  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  --disp:"Shippori Mincho B1", serif;
+  --body:"Zen Kaku Gothic New", system-ui, sans-serif;
+  --nav-w:264px;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+@media (prefers-reduced-motion: reduce){html{scroll-behavior:auto}*{animation:none!important;transition:none!important}}
+body{
+  margin:0;background:var(--paper);color:var(--ink);
+  font-family:var(--body);font-weight:400;font-size:16px;line-height:1.85;
+  -webkit-font-smoothing:antialiased;
+}
+
+.directory{
+  position:fixed;top:0;left:0;width:var(--nav-w);height:100vh;
+  background:var(--sign);color:var(--sign-ink);
+  padding:32px 0 24px;overflow-y:auto;z-index:20;
+}
+.directory .plate{
+  padding:0 24px 20px;margin-bottom:8px;
+  border-bottom:1px solid rgba(237,232,241,.22);
+}
+.directory .plate b{
+  display:block;font-family:var(--disp);font-size:17px;font-weight:700;
+  letter-spacing:.06em;line-height:1.5;
+}
+.directory .plate span{
+  display:block;font-size:11.5px;letter-spacing:.16em;
+  color:rgba(237,232,241,.6);margin-top:6px;
+}
+.directory ol{list-style:none;margin:0;padding:0}
+.directory a{
+  display:block;padding:7px 24px 7px 22px;
+  color:rgba(237,232,241,.78);text-decoration:none;
+  font-size:13.5px;line-height:1.5;border-left:2px solid transparent;
+  transition:color .15s, border-color .15s, background .15s;
+}
+.directory a .num{
+  font-family:var(--mono);font-size:11px;letter-spacing:.08em;
+  color:rgba(237,232,241,.45);margin-right:9px;
+}
+.directory a:hover{color:#fff;background:rgba(255,255,255,.06)}
+.directory a.sub{padding-left:44px;font-size:12.5px;color:rgba(237,232,241,.58)}
+.directory a.on{color:#fff;border-left-color:#fff;background:rgba(255,255,255,.08)}
+.directory a.on .num{color:rgba(255,255,255,.8)}
+.directory a:focus-visible{outline:2px solid #fff;outline-offset:-2px}
+.dir-sep{
+  padding:16px 24px 6px;font-size:10.5px;letter-spacing:.2em;
+  color:rgba(237,232,241,.45);
+}
+
+.sheet{margin-left:var(--nav-w);padding:0 clamp(20px,5vw,76px) 120px;max-width:1020px}
+
+.masthead{padding:84px 0 40px;border-bottom:2px solid var(--ink)}
+.eyebrow{
+  font-family:var(--mono);font-size:11.5px;letter-spacing:.24em;
+  color:var(--sign);text-transform:uppercase;margin:0 0 20px;
+}
+h1{
+  font-family:var(--disp);font-weight:700;
+  font-size:clamp(30px,5.2vw,52px);line-height:1.32;
+  letter-spacing:.01em;margin:0 0 18px;
+}
+.standfirst{font-size:16.5px;color:var(--ink-2);max-width:56ch;margin:0}
+.meta{
+  margin-top:28px;font-family:var(--mono);font-size:11.5px;
+  letter-spacing:.1em;color:var(--ink-3);
+}
+
+.typecards{
+  margin:44px 0 0;display:grid;gap:1px;background:var(--rule);
+  border:1px solid var(--rule);border-radius:4px;overflow:hidden;
+  grid-template-columns:repeat(auto-fit,minmax(210px,1fr));
+}
+.typecards div{background:var(--card);padding:20px 22px}
+.typecards b{
+  display:block;font-family:var(--mono);font-size:11px;letter-spacing:.18em;
+  color:var(--sign-2);margin-bottom:9px;
+}
+.typecards strong{
+  display:block;font-family:var(--disp);font-size:16px;font-weight:700;
+  line-height:1.5;margin-bottom:6px;
+}
+.typecards span{display:block;font-size:13px;color:var(--ink-2);line-height:1.7}
+
+section{padding-top:72px;scroll-margin-top:24px}
+h2{
+  font-family:var(--disp);font-weight:700;font-size:clamp(22px,3.2vw,30px);
+  line-height:1.45;margin:0 0 8px;
+}
+.h2rule{display:flex;align-items:center;gap:14px;margin-bottom:26px}
+.h2rule .n{
+  font-family:var(--mono);font-size:12px;letter-spacing:.14em;
+  color:#fff;background:var(--sign);padding:3px 9px;border-radius:2px;flex:none;
+}
+.h2rule .line{flex:1;height:1px;background:var(--rule)}
+h3{
+  font-family:var(--body);font-weight:700;font-size:18px;line-height:1.6;
+  margin:44px 0 12px;padding-bottom:8px;border-bottom:1px solid var(--rule-soft);
+}
+h4{font-family:var(--body);font-weight:700;font-size:15.5px;margin:28px 0 8px}
+p{margin:0 0 18px}
+strong{font-weight:700}
+a{color:var(--sign)}
+ul,ol{margin:0 0 18px;padding-left:1.3em}
+li{margin-bottom:7px}
+code{
+  font-family:var(--mono);font-size:.86em;background:#E2DEE7;
+  padding:.14em .42em;border-radius:3px;color:#272230;
+}
+pre{
+  font-family:var(--mono);font-size:13px;line-height:1.75;
+  background:var(--ink);color:#DDD8E3;padding:18px 20px;border-radius:4px;
+  overflow-x:auto;margin:0 0 20px;
+}
+pre code{background:none;padding:0;color:inherit;font-size:inherit}
+
+.tw{overflow-x:auto;margin:0 0 24px;-webkit-overflow-scrolling:touch}
+table{border-collapse:collapse;width:100%;font-size:14.5px;min-width:520px}
+caption{
+  caption-side:top;text-align:left;font-size:12.5px;letter-spacing:.06em;
+  color:var(--ink-3);padding-bottom:9px;
+}
+th,td{padding:10px 14px;text-align:left;vertical-align:top;border-bottom:1px solid var(--rule-soft)}
+thead th{
+  font-size:12px;letter-spacing:.09em;font-weight:700;color:var(--sign);
+  border-bottom:1.5px solid var(--sign);white-space:nowrap;
+}
+tbody tr:hover{background:rgba(75,49,98,.05)}
+td:first-child{font-weight:500}
+.ok{color:var(--sign);font-weight:700}
+.ng{color:var(--danger);font-weight:700}
+
+figure{margin:30px 0 34px}
+figure svg{display:block;width:100%;height:auto;background:var(--card);border:1px solid var(--rule);border-radius:4px;padding:8px 0}
+figcaption{
+  margin-top:11px;font-size:12.5px;color:var(--ink-3);
+  padding-left:14px;border-left:2px solid var(--rule);
+}
+
+.note{
+  border-left:3px solid var(--sign);background:rgba(75,49,98,.06);
+  padding:16px 20px;margin:0 0 24px;border-radius:0 3px 3px 0;
+}
+.note.warn{border-left-color:var(--amber);background:var(--amber-bg)}
+.note.stop{border-left-color:var(--danger);background:var(--danger-bg)}
+.note p:last-child{margin-bottom:0}
+.note .lab{
+  display:block;font-size:11.5px;letter-spacing:.16em;font-weight:700;
+  color:var(--sign);margin-bottom:6px;
+}
+.note.warn .lab{color:var(--amber)}
+.note.stop .lab{color:var(--danger)}
+
+.d-t{font-family:var(--body);font-size:14px;fill:var(--ink)}
+.d-ts{font-family:var(--body);font-size:12px;fill:var(--ink-2)}
+.d-th{font-family:var(--body);font-size:14px;font-weight:500;fill:var(--ink)}
+.arr{stroke:var(--ink-3);stroke-width:1.5;fill:none}
+.f-plum rect{fill:#E4DCEB;stroke:#6B4A87;stroke-width:.8}
+.f-plum .d-t,.f-plum .d-th{fill:#382349}.f-plum .d-ts{fill:#523669}
+.f-clay rect{fill:#F1DDD5;stroke:#A85C43;stroke-width:.8}
+.f-clay .d-t,.f-clay .d-th{fill:#6B3220}.f-clay .d-ts{fill:#84462F}
+.f-sand rect{fill:#F0E7D2;stroke:#A8813C;stroke-width:.8}
+.f-sand .d-t,.f-sand .d-th{fill:#5E4611}.f-sand .d-ts{fill:#7C6023}
+.f-gray rect{fill:#E4E1E8;stroke:#98929F;stroke-width:.8}
+.f-gray .d-t,.f-gray .d-th{fill:#35303C}.f-gray .d-ts{fill:#544E5C}
+
+footer{
+  margin-top:96px;padding-top:26px;border-top:2px solid var(--ink);
+  font-size:13px;color:var(--ink-3);
+}
+
+@media (max-width:960px){
+  :root{--nav-w:0px}
+  .directory{position:static;width:auto;height:auto;padding:22px 0 18px}
+  .directory ol{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:0 4px}
+  .directory a.sub{display:none}
+  .dir-sep{display:none}
+  .sheet{margin-left:0}
+  .masthead{padding-top:48px}
+}
+
+@media print{
+  .directory{display:none}
+  .sheet{margin-left:0;max-width:none}
+  body{background:#fff;font-size:11pt}
+  section{page-break-inside:auto;padding-top:28px}
+  h2,h3{page-break-after:avoid}
+  figure,table,.note{page-break-inside:avoid}
+}
+</style>
+</head>
+<body>
+
+<nav class="directory" aria-label="目次">
+  <div class="plate">
+    <b>アカウントで<br>共有されるもの</b>
+    <span>AWS 構成メモ VOL.3</span>
+  </div>
+  <div class="dir-sep">4つの型</div>
+  <ol>
+    <li><a href="#s1"><span class="num">01</span>共有される「枠」</a>
+      <a class="sub" href="#s1-lambda">Lambda 同時実行数</a>
+      <a class="sub" href="#s1-list">主な上限の一覧</a>
+    </li>
+    <li><a href="#s2"><span class="num">02</span>1つしか持てない設定</a></li>
+    <li><a href="#s3"><span class="num">03</span>名前空間の衝突</a></li>
+    <li><a href="#s4"><span class="num">04</span>巻き添えリスク</a></li>
+  </ol>
+  <div class="dir-sep">判断</div>
+  <ol start="5">
+    <li><a href="#s5"><span class="num">05</span>分けなくてよいもの</a></li>
+    <li><a href="#s6"><span class="num">06</span>分割の判断基準</a></li>
+    <li><a href="#s7"><span class="num">07</span>分けずに守る手当て</a></li>
+  </ol>
+</nav>
+
+<main class="sheet">
+
+<header class="masthead">
+  <p class="eyebrow">Internal reference / vol.3</p>
+  <h1>アカウントで<br>共有されるもの</h1>
+  <p class="standfirst">
+    設定を分けたいとき、どこまでがアカウント内で分離でき、どこからがアカウントを
+    分けないと不可能なのか。その境目を整理した記録です。
+    アカウント分割は最後の手段であり、たいていの要件はその手前で満たせます。
+  </p>
+  <p class="meta">2026 / 全 7 章</p>
+
+  <div class="typecards">
+    <div>
+      <b>TYPE 1</b>
+      <strong>共有される枠</strong>
+      <span>誰かが使い切ると、他が使えなくなる。影響が最も大きい</span>
+    </div>
+    <div>
+      <b>TYPE 2</b>
+      <strong>1つしか持てない設定</strong>
+      <span>分けたくても分けられない。請求やパスワードポリシーなど</span>
+    </div>
+    <div>
+      <b>TYPE 3</b>
+      <strong>名前空間の衝突</strong>
+      <span>命名規約で回避できる。分割の理由にはならない</span>
+    </div>
+    <div>
+      <b>TYPE 4</b>
+      <strong>巻き添えリスク</strong>
+      <span>枠ではないが影響が及ぶ。誤操作の射程がここに含まれる</span>
+    </div>
+  </div>
+</header>
+
+<!-- ============ 01 ============ -->
+<section id="s1">
+  <div class="h2rule"><span class="n">01</span><h2>共有される「枠」</h2><span class="line"></span></div>
+
+  <p>
+    アカウント＋リージョンごとに与えられる総量で、そこにあるリソース全部で分け合う形になっています。
+    <strong>1 つが使い切れば、他は自動的に弾かれます</strong>。
+    しかも上限を設定していないリソースは、止める手段がありません。
+  </p>
+
+  <h3 id="s1-lambda">典型例：Lambda の同時実行数</h3>
+
+  <figure>
+    <svg viewBox="0 0 680 380" role="img" aria-label="アカウント内の共有プールを複数のLambda関数が分け合い、1つが使い切ると他が失敗する仕組み">
+      <defs><marker id="ar1" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#7D7686" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+      <rect x="40" y="30" width="600" height="310" rx="14" fill="none" stroke="#7D7686" stroke-width="1" stroke-dasharray="5 4"/>
+      <text class="d-th" x="60" y="54" dominant-baseline="central">AWSアカウント ＋ リージョン</text>
+      <g class="f-plum"><rect x="180" y="80" width="320" height="56" rx="8"/>
+        <text class="d-th" x="340" y="101" text-anchor="middle" dominant-baseline="central">共有プール</text>
+        <text class="d-ts" x="340" y="120" text-anchor="middle" dominant-baseline="central">同時実行数 1,000</text></g>
+      <line x1="340" y1="140" x2="340" y2="168" class="arr"/>
+      <line x1="155" y1="168" x2="525" y2="168" class="arr"/>
+      <line x1="155" y1="168" x2="155" y2="196" class="arr" marker-end="url(#ar1)"/>
+      <line x1="340" y1="168" x2="340" y2="196" class="arr" marker-end="url(#ar1)"/>
+      <line x1="525" y1="168" x2="525" y2="196" class="arr" marker-end="url(#ar1)"/>
+      <g class="f-clay"><rect x="70" y="200" width="170" height="60" rx="8"/>
+        <text class="d-th" x="155" y="222" text-anchor="middle" dominant-baseline="central">関数A</text>
+        <text class="d-ts" x="155" y="242" text-anchor="middle" dominant-baseline="central">980 実行中</text></g>
+      <g class="f-gray"><rect x="255" y="200" width="170" height="60" rx="8"/>
+        <text class="d-th" x="340" y="222" text-anchor="middle" dominant-baseline="central">関数B</text>
+        <text class="d-ts" x="340" y="242" text-anchor="middle" dominant-baseline="central">Throttles で失敗</text></g>
+      <g class="f-gray"><rect x="440" y="200" width="170" height="60" rx="8"/>
+        <text class="d-th" x="525" y="222" text-anchor="middle" dominant-baseline="central">関数C</text>
+        <text class="d-ts" x="525" y="242" text-anchor="middle" dominant-baseline="central">Throttles で失敗</text></g>
+      <text class="d-ts" x="340" y="300" text-anchor="middle">1つが枠を使い切ると、無関係な関数まで巻き込まれる</text>
+    </svg>
+    <figcaption>関数 A の暴走が、関数 B・C の失敗として現れる。障害の原因が別のシステムにある、という追いにくい状況になる。</figcaption>
+  </figure>
+
+  <div class="note stop">
+    <span class="lab">対処は「予約済み同時実行数」</span>
+    <p>
+      関数ごとに<strong>予約済み同時実行数</strong>を設定すると、その分が専用枠として確保され、
+      同時に<strong>その関数の上限にもなります</strong>。
+      重要な関数には確保、暴走しうる関数には制限、という 2 つの意味で効きます。
+      API Gateway のステージ別スロットリングとまったく同じ考え方です。
+    </p>
+  </div>
+
+  <h3 id="s1-list">主な共有上限</h3>
+  <div class="tw"><table>
+    <caption>すべてアカウント＋リージョン単位。既定値は変更されている場合があります</caption>
+    <thead><tr><th>サービス</th><th>共有される枠</th><th>既定値</th><th>枯渇したときに起きること</th></tr></thead>
+    <tbody>
+      <tr><td>Lambda</td><td>同時実行数</td><td>1,000</td><td>全関数が <code>Throttles</code> で失敗し始める</td></tr>
+      <tr><td>API Gateway</td><td>スロットリング</td><td>10,000 rps / バースト 5,000</td><td>全 API が 429 を返す</td></tr>
+      <tr><td>API Gateway</td><td>API の数</td><td>600</td><td>新規 API が作れない</td></tr>
+      <tr><td>API Gateway</td><td>VPC Link の数</td><td>20</td><td>プライベート統合が追加できない</td></tr>
+      <tr><td>IAM</td><td>ロール数 / ポリシー数</td><td>1,000 / 1,500</td><td>新規ロールが作れない</td></tr>
+      <tr><td>EC2</td><td>vCPU 数（タイプ別）</td><td>タイプによる</td><td>インスタンスが起動できない</td></tr>
+      <tr><td>VPC</td><td>VPC 数</td><td>5</td><td>新規 VPC が作れない</td></tr>
+      <tr><td>VPC</td><td>Elastic IP の数</td><td>5</td><td>NAT Gateway が作れない</td></tr>
+      <tr><td>S3</td><td>バケット数</td><td>10,000</td><td>新規バケットが作れない</td></tr>
+      <tr><td>CloudFormation</td><td>スタック数</td><td>2,000</td><td>デプロイが失敗する</td></tr>
+      <tr><td>SES</td><td>送信レート / 日次上限</td><td>サンドボックス状態</td><td>メールが送れない</td></tr>
+      <tr><td>CloudWatch</td><td>ダッシュボード数 / アラーム数</td><td>無料枠あり</td><td>課金が始まる（作成自体は可能）</td></tr>
+    </tbody>
+  </table></div>
+
+  <div class="note">
+    <span class="lab">引き上げ申請という選択肢</span>
+    <p>
+      多くはサービスクォータから引き上げ申請ができます。枠が足りないだけなら、
+      アカウントを分けずに増やすほうが安く済みます。
+      ただし<strong>枠を増やしても「共有である」ことは変わりません</strong>。
+      個別の上限設定は結局必要になるので、
+      まず個別上限を入れて実態を測り、それでも足りなければ申請、という順序が健全です。
+    </p>
+  </div>
+</section>
+
+<!-- ============ 02 ============ -->
+<section id="s2">
+  <div class="h2rule"><span class="n">02</span><h2>1つしか持てない設定</h2><span class="line"></span></div>
+
+  <p>分けたくても構造上分けられないものです。要件がここに当たると、アカウント分割が唯一の手段になります。</p>
+
+  <div class="tw"><table>
+    <thead><tr><th>サービス</th><th>設定</th><th>影響範囲</th></tr></thead>
+    <tbody>
+      <tr><td>請求</td><td>支払い方法、請求書</td><td><strong>アカウント単位が最小</strong>。タグでは分けられない</td></tr>
+      <tr><td>IAM</td><td>パスワードポリシー</td><td>全 IAM ユーザーに同一</td></tr>
+      <tr><td>S3</td><td>パブリックアクセスブロック（アカウントレベル）</td><td>全バケットに一括適用</td></tr>
+      <tr><td>EBS</td><td>デフォルト暗号化、デフォルト KMS キー</td><td>リージョン単位で 1 つ</td></tr>
+      <tr><td>API Gateway</td><td>CloudWatch Logs のロール ARN</td><td>全 API で共通。1 つだけ別ロールにはできない</td></tr>
+      <tr><td>Cost Explorer</td><td>コスト配分タグの有効化</td><td>管理アカウントでのみ設定</td></tr>
+      <tr><td>Config</td><td>記録対象リソースの設定</td><td>リージョンごとに 1 つ</td></tr>
+      <tr><td>CloudTrail</td><td>証跡の設定</td><td>分けられるが、実務上は 1 本にまとめる</td></tr>
+      <tr><td>Organizations</td><td>SCP の適用</td><td>アカウントまたは OU 単位が最小</td></tr>
+    </tbody>
+  </table></div>
+
+  <div class="note warn">
+    <span class="lab">請求の分離はタグでは代替できない</span>
+    <p>
+      「部署ごとにコストを<strong>把握</strong>したい」ならタグで足ります。
+      しかし「部署ごとに<strong>請求書を分けたい</strong>」「支払い方法を分けたい」となると、
+      アカウント分割以外に手段がありません。ここは要件の言葉づかいを詰めておく価値があります。
+    </p>
+  </div>
+</section>
+
+<!-- ============ 03 ============ -->
+<section id="s3">
+  <div class="h2rule"><span class="n">03</span><h2>名前空間の衝突</h2><span class="line"></span></div>
+
+  <p>同じ名前が使えない、というタイプです。<strong>命名規約で回避できるので、分割の理由にはなりません。</strong></p>
+
+  <div class="tw"><table>
+    <thead><tr><th>サービス</th><th>一意でなければならないもの</th><th>範囲</th></tr></thead>
+    <tbody>
+      <tr><td>IAM</td><td>ロール名、ユーザー名、ポリシー名</td><td>アカウント内</td></tr>
+      <tr><td>S3</td><td>バケット名</td><td><strong>全世界</strong></td></tr>
+      <tr><td>CloudWatch</td><td>ロググループ名、ダッシュボード名</td><td>アカウント＋リージョン</td></tr>
+      <tr><td>ECR</td><td>リポジトリ名</td><td>アカウント＋リージョン</td></tr>
+      <tr><td>Secrets Manager / SSM</td><td>シークレット名、パラメータ名</td><td>アカウント＋リージョン</td></tr>
+      <tr><td>CloudFormation</td><td>スタック名</td><td>アカウント＋リージョン</td></tr>
+      <tr><td>API Gateway</td><td>カスタムドメイン名</td><td>全世界（DNS のため）</td></tr>
+    </tbody>
+  </table></div>
+
+  <h4>命名規約の型</h4>
+  <p>環境名とシステム名を接頭辞に置くのが定石です。衝突回避と、一覧での判別を同時に満たせます。</p>
+  <pre><code>{環境}-{システム}-{リソース種別}-{用途}
+
+dev-commapi-agw-api-hotelsearch
+prod-commapi-agw-api-hotelsearch</code></pre>
+  <p>
+    ロググループも同じ考え方で階層を切ります。
+    <strong>サービスごとの名前空間を分けておく</strong>と、権限設計と保持期間の管理が楽になります。
+  </p>
+  <pre><code>/aws/apigateway/{システム}/{API}-{ステージ}/access
+/aws/lambda/{システム}/{関数名}</code></pre>
+</section>
+
+<!-- ============ 04 ============ -->
+<section id="s4">
+  <div class="h2rule"><span class="n">04</span><h2>巻き添えリスク</h2><span class="line"></span></div>
+
+  <p>枠でも設定でもないのに、影響が及んでしまうものです。見落とされがちですが、実務ではこれが一番効いてきます。</p>
+
+  <div class="tw"><table>
+    <thead><tr><th>事象</th><th>何が起きるか</th></tr></thead>
+    <tbody>
+      <tr><td>コントロールプレーンの API レート制限</td><td><code>DescribeInstances</code> などの呼び出し制限はアカウント共有。CI/CD が回りすぎると、他のツールが <code>RequestLimitExceeded</code> で失敗する</td></tr>
+      <tr><td>GuardDuty / Security Hub の検出結果</td><td>アカウント単位で混在。開発環境のノイズに本番の検知が埋もれる</td></tr>
+      <tr><td>AWS サポートケース</td><td>アカウント単位。開発の問い合わせと本番障害が同じ列に並ぶ</td></tr>
+      <tr><td>IAM ロールの信頼関係</td><td>同一アカウント内は到達しやすい。信頼ポリシーの誤設定が横断的な権限漏れになる</td></tr>
+      <tr><td><strong>誤操作の影響範囲</strong></td><td><code>terraform destroy</code> の対象を間違えたとき、同じアカウントなら本番も射程内</td></tr>
+    </tbody>
+  </table></div>
+
+  <div class="note stop">
+    <span class="lab">アカウント境界は人的ミスに対する最も硬い壁</span>
+    <p>
+      最後の項目が、アカウント分割の実務上いちばん大きい理由です。
+      IAM で権限を絞る努力より、<strong>そもそも到達できない場所に置くほうが確実</strong>です。
+      本番と開発を分ける最大の価値は、枠の分離よりも「事故が越えられない線を引くこと」にあります。
+    </p>
+  </div>
+</section>
+
+<!-- ============ 05 ============ -->
+<section id="s5">
+  <div class="h2rule"><span class="n">05</span><h2>分けなくてよいもの</h2><span class="line"></span></div>
+
+  <p>
+    ここが本題かもしれません。「分けたい」と言われる要件の多くは、
+    <strong>アカウントを分けずに満たせます</strong>。
+  </p>
+
+  <div class="tw"><table>
+    <thead><tr><th>やりたいこと</th><th>分割が必要か</th><th>代わりの手段</th></tr></thead>
+    <tbody>
+      <tr><td>ログを分けたい</td><td class="ok">不要</td><td>ロググループを分ける。保持期間も権限もここに紐づく</td></tr>
+      <tr><td>メトリクスを分けたい</td><td class="ok">不要</td><td>ディメンションで分かれる。設定も不要</td></tr>
+      <tr><td>権限を分けたい</td><td class="ok">不要</td><td>IAM ポリシーのリソース ARN を絞る</td></tr>
+      <tr><td>コストを把握したい</td><td class="ok">不要</td><td>タグを付け、コスト配分タグを有効化する</td></tr>
+      <tr><td>ネットワークを分けたい</td><td class="ok">不要</td><td>VPC・サブネットを分ける</td></tr>
+      <tr><td>アラートの宛先を分けたい</td><td class="ok">不要</td><td>SNS トピックを分ける</td></tr>
+      <tr><td>デプロイを独立させたい</td><td class="ok">不要</td><td>スタック・パイプラインを分ける</td></tr>
+      <tr><td>流量の相互影響を断ちたい</td><td class="ng">必要</td><td>総枠が共有のため（個別上限で緩和は可能）</td></tr>
+      <tr><td>請求書を分けたい</td><td class="ng">必要</td><td>タグでは代替できない</td></tr>
+      <tr><td>誤操作を物理的に防ぎたい</td><td class="ng">必要</td><td>IAM では限界がある</td></tr>
+    </tbody>
+  </table></div>
+
+  <div class="note">
+    <span class="lab">分割にもコストがある</span>
+    <p>
+      アカウントを増やせば、IAM の設計、クロスアカウントのアクセス、
+      ログの集約、ネットワーク接続（Transit Gateway など）がすべて必要になります。
+      <strong>運用の手間は確実に増えます</strong>。
+      上の表で「不要」に当たる要件しかないなら、
+      同一アカウント内でタグと命名規約で整理するほうが総コストは低く済みます。
+    </p>
+  </div>
+</section>
+
+<!-- ============ 06 ============ -->
+<section id="s6">
+  <div class="h2rule"><span class="n">06</span><h2>分割の判断基準</h2><span class="line"></span></div>
+
+  <p>3 つの問いのどれかに当てはまるなら分割、当てはまらないなら同一アカウントで整理する、という判断になります。</p>
+
+  <figure>
+    <svg viewBox="0 0 680 356" role="img" aria-label="アカウント分割を判断する3つの条件と、当てはまらない場合の対応">
+      <defs><marker id="ar2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#7D7686" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+      <g class="f-sand"><rect x="50" y="40" width="344" height="56" rx="8"/>
+        <text class="d-th" x="66" y="61" dominant-baseline="central">枠を食い合うか</text>
+        <text class="d-ts" x="66" y="80" dominant-baseline="central">Lambda 同時実行、API Gateway</text></g>
+      <g class="f-sand"><rect x="50" y="110" width="344" height="56" rx="8"/>
+        <text class="d-th" x="66" y="131" dominant-baseline="central">請求を分けたいか</text>
+        <text class="d-ts" x="66" y="150" dominant-baseline="central">タグでは代替できない</text></g>
+      <g class="f-sand"><rect x="50" y="180" width="344" height="56" rx="8"/>
+        <text class="d-th" x="66" y="201" dominant-baseline="central">誤操作を物理的に防ぐか</text>
+        <text class="d-ts" x="66" y="220" dominant-baseline="central">IAM では限界がある</text></g>
+      <line x1="394" y1="68" x2="415" y2="68" class="arr"/>
+      <line x1="394" y1="138" x2="415" y2="138" class="arr"/>
+      <line x1="394" y1="208" x2="415" y2="208" class="arr"/>
+      <line x1="415" y1="68" x2="415" y2="208" class="arr"/>
+      <line x1="415" y1="138" x2="441" y2="138" class="arr" marker-end="url(#ar2)"/>
+      <g class="f-plum"><rect x="446" y="104" width="194" height="68" rx="8"/>
+        <text class="d-th" x="543" y="128" text-anchor="middle" dominant-baseline="central">アカウント分割</text>
+        <text class="d-ts" x="543" y="148" text-anchor="middle" dominant-baseline="central">いずれか該当なら</text></g>
+      <g class="f-gray"><rect x="50" y="260" width="590" height="56" rx="8"/>
+        <text class="d-th" x="345" y="281" text-anchor="middle" dominant-baseline="central">どれにも当てはまらない場合</text>
+        <text class="d-ts" x="345" y="300" text-anchor="middle" dominant-baseline="central">同一アカウントでタグと命名規約で整理する</text></g>
+    </svg>
+    <figcaption>3 つのうち 1 つでも当てはまれば分割を検討する。それ以外は同一アカウント内で足りる。</figcaption>
+  </figure>
+
+  <h3>一般的な分割の単位</h3>
+  <div class="tw"><table>
+    <thead><tr><th>アカウント</th><th>役割</th><th>優先度</th></tr></thead>
+    <tbody>
+      <tr><td>本番</td><td>顧客に提供する環境</td><td>最優先。ここを守るための分割</td></tr>
+      <tr><td>ステージング</td><td>本番同等の検証</td><td>本番と同じ構成を持つ</td></tr>
+      <tr><td>開発</td><td>日常の開発・実験</td><td>負荷試験もここで</td></tr>
+      <tr><td>監査ログ</td><td>CloudTrail・Config の集約先</td><td>改ざん防止。書き込み専用に近い権限</td></tr>
+      <tr><td>共有サービス</td><td>CI/CD、ECR、DNS など</td><td>各環境から参照される</td></tr>
+    </tbody>
+  </table></div>
+  <p>
+    <strong>本番 / ステージング / 開発の 3 分割が最小構成</strong>で、
+    そこに監査ログ用・共有サービス用を足していくのが AWS の推奨する形です。
+    <code>Organizations</code> と <code>Control Tower</code> を使うと、
+    この払い出しと初期設定（SCP、CloudTrail、ログ集約）を標準化できます。
+  </p>
+  <p>
+    請求は Organizations の一括請求でまとめられるので、
+    <strong>アカウントを分けても支払いは 1 本にできます</strong>。
+    「分けると請求が煩雑になる」という懸念は、ここで解消できます。
+  </p>
+</section>
+
+<!-- ============ 07 ============ -->
+<section id="s7">
+  <div class="h2rule"><span class="n">07</span><h2>分けずに守る手当て</h2><span class="line"></span></div>
+
+  <p>
+    すぐには分割できない、という状況のほうが多いはずです。
+    その場合でも、<strong>共有枠の食い合いは個別上限でかなり緩和できます</strong>。
+  </p>
+
+  <div class="tw"><table>
+    <thead><tr><th>共有枠</th><th>入れておく手当て</th></tr></thead>
+    <tbody>
+      <tr><td>Lambda 同時実行数</td><td>関数ごとに<strong>予約済み同時実行数</strong>。重要な関数には確保、暴走しうる関数には制限</td></tr>
+      <tr><td>API Gateway スロットリング</td><td>ステージごとにレートとバースト。既定の 10,000 は「無制限」と同義</td></tr>
+      <tr><td>コントロールプレーンの API 呼び出し</td><td>CI/CD のポーリング間隔を延ばす。<code>describe</code> 系の連打を避ける</td></tr>
+      <tr><td>Elastic IP / VPC 数</td><td>使っていないものを定期的に棚卸し</td></tr>
+      <tr><td>IAM ロール数</td><td>一時的に作ったロールを消す運用ルール</td></tr>
+    </tbody>
+  </table></div>
+
+  <h4>値の決め方</h4>
+  <p>
+    勘で決める必要はありません。CloudWatch に実績があります。
+    <code>ConcurrentExecutions</code> や <code>Count</code> を <strong>1 分の最大値</strong>で見て、
+    実測ピークに 3〜5 倍の余裕を持たせた値を入れます。
+    実測 20 rps に対して 10,000 が設定されている、というのはよくある状態です。
+  </p>
+
+  <div class="note warn">
+    <span class="lab">上限を入れる順序</span>
+    <p>
+      いきなり全部に厳しい値を入れると、正常な処理まで弾かれます。
+      ① 実測値を取る → ② 余裕を持たせた値を入れる → ③ <code>Throttles</code> や 429 を監視する、
+      という順で進めてください。特に③のアラームを先に用意しておくと、
+      設定が厳しすぎた場合にすぐ気づけます。
+    </p>
+  </div>
+
+  <h4>棚卸しの観点</h4>
+  <ul>
+    <li>ドメインにマッピングされていない未使用ステージ</li>
+    <li>呼ばれていない Lambda 関数（<code>Invocations</code> がゼロ）</li>
+    <li>アタッチされていない Elastic IP（課金対象）</li>
+    <li>保持期間が無期限のロググループ</li>
+    <li>詳細メトリクスが有効なまま放置されている API</li>
+  </ul>
+  <p>
+    いずれも枠と料金の両方に効きます。
+    分割の是非を判断する前に、まずこの棚卸しをすると、実際の必要量が見えてきます。
+  </p>
+</section>
+
+<footer>
+  アカウントで共有されるもの — 内部リファレンス vol.3<br>
+  上限値は既定値であり、引き上げ申請済みの場合は異なります。最新値はサービスクォータで確認してください。
+</footer>
+
+</main>
+
+<script>
+(function(){
+  var links = Array.prototype.slice.call(document.querySelectorAll('.directory a[href^="#"]'));
+  var map = {};
+  links.forEach(function(a){
+    var el = document.querySelector(a.getAttribute('href'));
+    if(el){ map[el.id] = a; }
+  });
+  var targets = Object.keys(map).map(function(id){ return document.getElementById(id); });
+  if(!('IntersectionObserver' in window) || !targets.length) return;
+
+  var visible = {};
+  var obs = new IntersectionObserver(function(entries){
+    entries.forEach(function(e){ visible[e.target.id] = e.isIntersecting; });
+    var current = null;
+    targets.forEach(function(t){ if(visible[t.id] && !current) current = t.id; });
+    if(!current) return;
+    links.forEach(function(a){ a.classList.remove('on'); });
+    map[current].classList.add('on');
+  }, { rootMargin: '-10% 0px -70% 0px', threshold: 0 });
+
+  targets.forEach(function(t){ obs.observe(t); });
+})();
+</script>
+</body>
+</html>

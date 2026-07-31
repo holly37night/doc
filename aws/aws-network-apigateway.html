@@ -1,0 +1,1314 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AWS ネットワークと API Gateway — 構成メモ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@700&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  color-scheme: light;
+  --paper:#EDEFEA;
+  --card:#F7F8F5;
+  --ink:#17211C;
+  --ink-2:#4A5751;
+  --ink-3:#7C8880;
+  --rule:#CBD1C7;
+  --rule-soft:#DDE1D9;
+  --sign:#1F5C4A;
+  --sign-2:#2F7A63;
+  --sign-ink:#E9F1EC;
+  --amber:#8A5A12;
+  --amber-bg:#F4EBD8;
+  --danger:#7E3229;
+  --danger-bg:#F3E2DD;
+  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  --disp:"Shippori Mincho B1", serif;
+  --body:"Zen Kaku Gothic New", system-ui, sans-serif;
+  --nav-w:264px;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+@media (prefers-reduced-motion: reduce){html{scroll-behavior:auto}*{animation:none!important;transition:none!important}}
+body{
+  margin:0;background:var(--paper);color:var(--ink);
+  font-family:var(--body);font-weight:400;font-size:16px;line-height:1.85;
+  -webkit-font-smoothing:antialiased;
+}
+
+/* ---------- 館内案内板ナビ ---------- */
+.directory{
+  position:fixed;top:0;left:0;width:var(--nav-w);height:100vh;
+  background:var(--sign);color:var(--sign-ink);
+  padding:32px 0 24px;overflow-y:auto;z-index:20;
+}
+.directory .plate{
+  padding:0 24px 20px;margin-bottom:8px;
+  border-bottom:1px solid rgba(233,241,236,.22);
+}
+.directory .plate b{
+  display:block;font-family:var(--disp);font-size:17px;font-weight:700;
+  letter-spacing:.06em;line-height:1.5;
+}
+.directory .plate span{
+  display:block;font-size:11.5px;letter-spacing:.16em;
+  color:rgba(233,241,236,.6);margin-top:6px;
+}
+.directory ol{list-style:none;margin:0;padding:0}
+.directory a{
+  display:block;padding:7px 24px 7px 22px;
+  color:rgba(233,241,236,.78);text-decoration:none;
+  font-size:13.5px;line-height:1.5;border-left:2px solid transparent;
+  transition:color .15s, border-color .15s, background .15s;
+}
+.directory a .num{
+  font-family:var(--mono);font-size:11px;letter-spacing:.08em;
+  color:rgba(233,241,236,.45);margin-right:9px;
+}
+.directory a:hover{color:#fff;background:rgba(255,255,255,.06)}
+.directory a.sub{padding-left:44px;font-size:12.5px;color:rgba(233,241,236,.58)}
+.directory a.on{color:#fff;border-left-color:#fff;background:rgba(255,255,255,.08)}
+.directory a.on .num{color:rgba(255,255,255,.8)}
+.directory a:focus-visible{outline:2px solid #fff;outline-offset:-2px}
+.dir-sep{
+  padding:16px 24px 6px;font-size:10.5px;letter-spacing:.2em;
+  color:rgba(233,241,236,.45);
+}
+
+/* ---------- 本体 ---------- */
+.sheet{margin-left:var(--nav-w);padding:0 clamp(20px,5vw,76px) 120px;max-width:1020px}
+
+.masthead{padding:84px 0 40px;border-bottom:2px solid var(--ink)}
+.eyebrow{
+  font-family:var(--mono);font-size:11.5px;letter-spacing:.24em;
+  color:var(--sign);text-transform:uppercase;margin:0 0 20px;
+}
+h1{
+  font-family:var(--disp);font-weight:700;
+  font-size:clamp(30px,5.2vw,52px);line-height:1.32;
+  letter-spacing:.01em;margin:0 0 18px;
+}
+.standfirst{font-size:16.5px;color:var(--ink-2);max-width:56ch;margin:0}
+.meta{
+  margin-top:28px;font-family:var(--mono);font-size:11.5px;
+  letter-spacing:.1em;color:var(--ink-3);
+}
+
+/* 冒頭の対応表 = このメモの背骨 */
+.keytable{margin:44px 0 0;border-top:1px solid var(--rule)}
+.keytable .row{
+  display:grid;grid-template-columns:minmax(0,1fr) 22px minmax(0,1.15fr);
+  gap:0 14px;align-items:baseline;
+  padding:13px 0;border-bottom:1px solid var(--rule-soft);
+}
+.keytable .b{font-family:var(--disp);font-size:15.5px;font-weight:700}
+.keytable .arrow{color:var(--sign-2);font-size:13px;text-align:center}
+.keytable .a{font-family:var(--mono);font-size:13.5px;color:var(--ink-2);letter-spacing:.01em}
+
+section{padding-top:72px;scroll-margin-top:24px}
+h2{
+  font-family:var(--disp);font-weight:700;font-size:clamp(22px,3.2vw,30px);
+  line-height:1.45;margin:0 0 8px;
+}
+.h2rule{display:flex;align-items:center;gap:14px;margin-bottom:26px}
+.h2rule .n{
+  font-family:var(--mono);font-size:12px;letter-spacing:.14em;
+  color:#fff;background:var(--sign);padding:3px 9px;border-radius:2px;flex:none;
+}
+.h2rule .line{flex:1;height:1px;background:var(--rule)}
+h3{
+  font-family:var(--body);font-weight:700;font-size:18px;line-height:1.6;
+  margin:44px 0 12px;padding-bottom:8px;border-bottom:1px solid var(--rule-soft);
+}
+h4{font-family:var(--body);font-weight:700;font-size:15.5px;margin:28px 0 8px}
+p{margin:0 0 18px}
+strong{font-weight:700}
+a{color:var(--sign)}
+ul,ol{margin:0 0 18px;padding-left:1.3em}
+li{margin-bottom:7px}
+code{
+  font-family:var(--mono);font-size:.86em;background:#E3E7DF;
+  padding:.14em .42em;border-radius:3px;color:#243029;
+}
+pre{
+  font-family:var(--mono);font-size:13px;line-height:1.75;
+  background:var(--ink);color:#DCE3DD;padding:18px 20px;border-radius:4px;
+  overflow-x:auto;margin:0 0 20px;
+}
+pre code{background:none;padding:0;color:inherit;font-size:inherit}
+
+/* 表 */
+.tw{overflow-x:auto;margin:0 0 24px;-webkit-overflow-scrolling:touch}
+table{border-collapse:collapse;width:100%;font-size:14.5px;min-width:520px}
+caption{
+  caption-side:top;text-align:left;font-size:12.5px;letter-spacing:.06em;
+  color:var(--ink-3);padding-bottom:9px;
+}
+th,td{padding:10px 14px;text-align:left;vertical-align:top;border-bottom:1px solid var(--rule-soft)}
+thead th{
+  font-size:12px;letter-spacing:.09em;font-weight:700;color:var(--sign);
+  border-bottom:1.5px solid var(--sign);white-space:nowrap;
+}
+tbody tr:hover{background:rgba(31,92,74,.045)}
+td:first-child{font-weight:500}
+.yes{color:var(--sign);font-weight:700}
+.no{color:var(--danger);font-weight:700}
+
+/* 図 */
+figure{margin:30px 0 34px}
+figure svg{display:block;width:100%;height:auto;background:var(--card);border:1px solid var(--rule);border-radius:4px;padding:8px 0}
+figcaption{
+  margin-top:11px;font-size:12.5px;color:var(--ink-3);
+  padding-left:14px;border-left:2px solid var(--rule);
+}
+
+/* 注記 */
+.note{
+  border-left:3px solid var(--sign);background:rgba(31,92,74,.06);
+  padding:16px 20px;margin:0 0 24px;border-radius:0 3px 3px 0;
+}
+.note.warn{border-left-color:var(--amber);background:var(--amber-bg)}
+.note.stop{border-left-color:var(--danger);background:var(--danger-bg)}
+.note p:last-child{margin-bottom:0}
+.note .lab{
+  display:block;font-size:11.5px;letter-spacing:.16em;font-weight:700;
+  color:var(--sign);margin-bottom:6px;
+}
+.note.warn .lab{color:var(--amber)}
+.note.stop .lab{color:var(--danger)}
+
+/* 手順 */
+.steps{list-style:none;margin:0 0 26px;padding:0;counter-reset:s}
+.steps li{
+  counter-increment:s;position:relative;padding:0 0 20px 52px;margin:0;
+  border-left:1px solid var(--rule);
+}
+.steps li:last-child{border-left-color:transparent;padding-bottom:0}
+.steps li::before{
+  content:counter(s,decimal-leading-zero);position:absolute;left:-15px;top:1px;
+  width:30px;height:30px;border-radius:50%;background:var(--paper);
+  border:1px solid var(--sign);color:var(--sign);
+  font-family:var(--mono);font-size:11.5px;
+  display:flex;align-items:center;justify-content:center;
+}
+.steps b{display:block;font-size:15.5px;margin-bottom:5px;padding-top:2px}
+.steps p{margin:0;font-size:14.5px;color:var(--ink-2)}
+
+/* チェックリスト */
+.check{list-style:none;padding:0;margin:0 0 24px}
+.check li{
+  position:relative;padding:11px 0 11px 30px;margin:0;
+  border-bottom:1px solid var(--rule-soft);font-size:15px;
+}
+.check li::before{
+  content:"";position:absolute;left:2px;top:19px;
+  width:11px;height:11px;border:1.5px solid var(--sign-2);border-radius:2px;
+}
+
+/* SVG 図の共通スタイル */
+.d-t{font-family:var(--body);font-size:14px;fill:var(--ink)}
+.d-ts{font-family:var(--body);font-size:12px;fill:var(--ink-2)}
+.d-th{font-family:var(--body);font-size:14px;font-weight:500;fill:var(--ink)}
+.arr{stroke:var(--ink-3);stroke-width:1.5;fill:none}
+.d-box rect,rect.d-box{fill:var(--card);stroke:var(--rule);stroke-width:.8}
+.f-green rect{fill:#DBE8E1;stroke:#2F7A63;stroke-width:.8}
+.f-green .d-t,.f-green .d-th{fill:#19453A}.f-green .d-ts{fill:#356355}
+.f-sand rect{fill:#F1E5CE;stroke:#A8813C;stroke-width:.8}
+.f-sand .d-t,.f-sand .d-th{fill:#5E4611}.f-sand .d-ts{fill:#7C6023}
+.f-slate rect{fill:#DEE4EC;stroke:#5C7396;stroke-width:.8}
+.f-slate .d-t,.f-slate .d-th{fill:#2A3B57}.f-slate .d-ts{fill:#42556F}
+.f-clay rect{fill:#F2DED7;stroke:#A85C43;stroke-width:1.4}
+.f-clay .d-t,.f-clay .d-th{fill:#6B3220}.f-clay .d-ts{fill:#84462F}
+.f-gray rect{fill:#E3E7E0;stroke:#96A096;stroke-width:.8}
+.f-gray .d-t,.f-gray .d-th{fill:#333D36}.f-gray .d-ts{fill:#525C54}
+.dash rect{fill:none;stroke:var(--ink-3);stroke-width:1;stroke-dasharray:5 4}
+
+footer{
+  margin-top:96px;padding-top:26px;border-top:2px solid var(--ink);
+  font-size:13px;color:var(--ink-3);
+}
+
+/* モバイル */
+.dirtoggle{display:none}
+@media (max-width:960px){
+  :root{--nav-w:0px}
+  .directory{
+    position:static;width:auto;height:auto;padding:22px 0 18px;
+  }
+  .directory ol{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:0 4px}
+  .directory a.sub{display:none}
+  .dir-sep{display:none}
+  .sheet{margin-left:0}
+  .masthead{padding-top:48px}
+  .keytable .row{grid-template-columns:1fr;gap:2px}
+  .keytable .arrow{display:none}
+}
+
+@media print{
+  .directory{display:none}
+  .sheet{margin-left:0;max-width:none}
+  body{background:#fff;font-size:11pt}
+  section{page-break-inside:auto;padding-top:28px}
+  h2,h3{page-break-after:avoid}
+  figure,table,.note{page-break-inside:avoid}
+}
+</style>
+</head>
+<body>
+
+<nav class="directory" aria-label="目次">
+  <div class="plate">
+    <b>AWS 構成メモ</b>
+    <span>NETWORK &amp; API GATEWAY</span>
+  </div>
+  <div class="dir-sep">基礎</div>
+  <ol>
+    <li><a href="#s1"><span class="num">01</span>主要サービス早見表</a></li>
+    <li><a href="#s2"><span class="num">02</span>通信の通り道と関所</a></li>
+    <li><a href="#s3"><span class="num">03</span>ビル1棟のたとえ</a>
+      <a class="sub" href="#s3-1">6つの用語</a>
+      <a class="sub" href="#s3-2">SG と NACL</a>
+      <a class="sub" href="#s3-3">つながらない時</a>
+    </li>
+  </ol>
+  <div class="dir-sep">API GATEWAY</div>
+  <ol start="4">
+    <li><a href="#s4"><span class="num">04</span>できることと種類</a></li>
+    <li><a href="#s45"><span class="num">05</span>主要な設定の詳細</a>
+      <a class="sub" href="#s45-log">ログと監視</a>
+      <a class="sub" href="#s45-thr">スロットリング</a>
+      <a class="sub" href="#s45-sec">保護と公開範囲</a>
+      <a class="sub" href="#s45-ops">運用と管理</a>
+    </li>
+    <li><a href="#s5"><span class="num">06</span>入り口の分け方</a>
+      <a class="sub" href="#s5-1">グループ分離</a>
+      <a class="sub" href="#s5-2">設定手順</a>
+    </li>
+    <li><a href="#s6"><span class="num">07</span>現状と次の一手</a></li>
+  </ol>
+</nav>
+
+<main class="sheet">
+
+<header class="masthead">
+  <p class="eyebrow">Internal reference</p>
+  <h1>AWS ネットワークと<br>API Gateway の構成メモ</h1>
+  <p class="standfirst">
+    VPC まわりの用語を「借りたビル1棟」にたとえて整理し、そのまま API Gateway の
+    入り口設計とグループ分離の話までつなげた記録です。読み返す前提で、
+    判断に必要な表と図だけを残しています。
+  </p>
+  <p class="meta">2026 / 全 6 章</p>
+
+  <div class="keytable">
+    <div class="row"><span class="b">借りたビル1棟</span><span class="arrow">→</span><span class="a">VPC</span></div>
+    <div class="row"><span class="b">フロア</span><span class="arrow">→</span><span class="a">サブネット</span></div>
+    <div class="row"><span class="b">館内の通路図</span><span class="arrow">→</span><span class="a">ルートテーブル</span></div>
+    <div class="row"><span class="b">正面玄関</span><span class="arrow">→</span><span class="a">Internet Gateway</span></div>
+    <div class="row"><span class="b">通用口</span><span class="arrow">→</span><span class="a">NAT Gateway</span></div>
+    <div class="row"><span class="b">部屋のドアの入室ルール</span><span class="arrow">→</span><span class="a">Security Group</span></div>
+    <div class="row"><span class="b">フロア入口の警備</span><span class="arrow">→</span><span class="a">Network ACL</span></div>
+  </div>
+</header>
+
+<!-- ============ 01 ============ -->
+<section id="s1">
+  <div class="h2rule"><span class="n">01</span><h2>主要サービス早見表</h2><span class="line"></span></div>
+
+  <p>用途から引くための一覧です。名前を知っているかどうかより、<strong>どういう場面で候補に挙がるか</strong>を覚えておくと選定が早くなります。</p>
+
+  <h3>コンピューティング</h3>
+  <div class="tw"><table>
+    <thead><tr><th>サービス</th><th>用途</th><th>こんなときに使う</th></tr></thead>
+    <tbody>
+      <tr><td>EC2</td><td>仮想サーバー</td><td>OS レベルの制御が必要。既存アプリをそのまま移行する</td></tr>
+      <tr><td>Lambda</td><td>サーバーレス関数</td><td>イベント駆動、実行時間が短い、リクエスト量の変動が大きい</td></tr>
+      <tr><td>ECS</td><td>コンテナ管理</td><td>Docker で運用したいが Kubernetes までは不要</td></tr>
+      <tr><td>EKS</td><td>マネージド Kubernetes</td><td>K8s の知見がある、マルチクラウド前提</td></tr>
+      <tr><td>Fargate</td><td>コンテナ実行基盤</td><td>ECS / EKS を使うが EC2 を管理したくない</td></tr>
+      <tr><td>Batch</td><td>バッチジョブ</td><td>大量の計算ジョブを自動スケールさせたい</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>ストレージとデータベース</h3>
+  <div class="tw"><table>
+    <thead><tr><th>サービス</th><th>用途</th><th>こんなときに使う</th></tr></thead>
+    <tbody>
+      <tr><td>S3</td><td>オブジェクトストレージ</td><td>画像・ログ・バックアップの保管、静的サイト、データレイク</td></tr>
+      <tr><td>EBS</td><td>EC2 用ディスク</td><td>単一インスタンスにアタッチする OS 領域や DB 領域</td></tr>
+      <tr><td>EFS</td><td>共有ファイルストレージ</td><td>複数の EC2 から同じファイルを読み書きしたい</td></tr>
+      <tr><td>RDS</td><td>マネージド RDB</td><td>MySQL / PostgreSQL などを運用負荷を下げて使う</td></tr>
+      <tr><td>Aurora</td><td>高性能 RDB</td><td>RDS より高い性能・可用性が必要。負荷変動が大きい</td></tr>
+      <tr><td>DynamoDB</td><td>NoSQL</td><td>超低レイテンシと大規模スケール。アクセスパターンが定まっている</td></tr>
+      <tr><td>ElastiCache</td><td>インメモリキャッシュ</td><td>DB 負荷軽減、セッション管理、ランキング</td></tr>
+      <tr><td>Redshift</td><td>データウェアハウス</td><td>大量データの集計・BI 分析（OLTP ではない）</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>ネットワークとセキュリティ</h3>
+  <div class="tw"><table>
+    <thead><tr><th>サービス</th><th>用途</th><th>こんなときに使う</th></tr></thead>
+    <tbody>
+      <tr><td>VPC</td><td>仮想ネットワーク</td><td>ほぼ全構成の土台。サブネット分割と境界設計</td></tr>
+      <tr><td>ELB (ALB / NLB)</td><td>ロードバランサー</td><td>ALB は HTTP のパスルーティング、NLB は TCP の低レイテンシ</td></tr>
+      <tr><td>Route 53</td><td>DNS</td><td>ドメイン管理、ヘルスチェック連動のフェイルオーバー</td></tr>
+      <tr><td>CloudFront</td><td>CDN</td><td>静的コンテンツの高速配信、オリジン負荷軽減</td></tr>
+      <tr><td>API Gateway</td><td>API の受け口</td><td>認証・流量制御・ログをまとめて肩代わりさせたい</td></tr>
+      <tr><td>IAM</td><td>権限管理</td><td>全 AWS 利用の基本。ロールとポリシーの設計</td></tr>
+      <tr><td>WAF</td><td>Web アプリ防御</td><td>SQLi・XSS 対策、国別ブロック、レート制限</td></tr>
+      <tr><td>Secrets Manager</td><td>機密情報管理</td><td>DB パスワードや API キーの保管と自動ローテーション</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>運用・統合・分析</h3>
+  <div class="tw"><table>
+    <thead><tr><th>サービス</th><th>用途</th><th>こんなときに使う</th></tr></thead>
+    <tbody>
+      <tr><td>CloudWatch</td><td>監視</td><td>ログ集約、閾値アラート、ダッシュボード</td></tr>
+      <tr><td>CloudTrail</td><td>API 操作の記録</td><td>「誰が何をしたか」の監査。インシデント調査</td></tr>
+      <tr><td>Systems Manager</td><td>サーバー運用</td><td>パッチ適用、SSH 不要の接続、コマンド一括実行</td></tr>
+      <tr><td>CloudFormation / CDK</td><td>構成のコード化</td><td>環境を再現可能にしたい</td></tr>
+      <tr><td>SQS</td><td>メッセージキュー</td><td>処理の非同期化。急なスパイクを吸収する</td></tr>
+      <tr><td>EventBridge</td><td>イベントバス</td><td>サービス間のイベント連携、cron による定期実行</td></tr>
+      <tr><td>Step Functions</td><td>ワークフロー</td><td>複数の処理を状態遷移で制御。リトライを可視化する</td></tr>
+      <tr><td>Athena</td><td>S3 への SQL</td><td>サーバー不要でログや CSV を直接分析する</td></tr>
+    </tbody>
+  </table></div>
+
+  <div class="note">
+    <span class="lab">まず押さえる 6 つ</span>
+    <p>IAM / VPC / S3 / EC2（または Lambda）/ RDS / CloudWatch。この 6 つが分かると、
+    残りは「その組み合わせ」として読めるようになります。</p>
+  </div>
+</section>
+
+<!-- ============ 02 ============ -->
+<section id="s2">
+  <div class="h2rule"><span class="n">02</span><h2>通信の通り道と関所</h2><span class="line"></span></div>
+
+  <p>ネットワークは「インターネットからリソースまでの通り道」と「その途中に立っている関所」で考えると整理できます。まず通り道の全体像です。</p>
+
+  <figure>
+    <svg viewBox="0 0 680 700" role="img" aria-label="インターネットからRoute 53、CloudFront、Internet Gateway、ALB、EC2、RDSへ至る通信経路">
+      <defs><marker id="ar1" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#7C8880" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+      <g class="f-gray"><rect x="180" y="40" width="320" height="44" rx="8"/>
+        <text class="d-th" x="340" y="62" text-anchor="middle" dominant-baseline="central">インターネット上の利用者</text></g>
+      <line x1="340" y1="88" x2="340" y2="118" class="arr" marker-end="url(#ar1)"/>
+      <g class="f-slate"><rect x="180" y="124" width="320" height="56" rx="8"/>
+        <text class="d-th" x="340" y="145" text-anchor="middle" dominant-baseline="central">Route 53</text>
+        <text class="d-ts" x="340" y="164" text-anchor="middle" dominant-baseline="central">名前解決 どのIPへ向かわせるか</text></g>
+      <line x1="340" y1="184" x2="340" y2="214" class="arr" marker-end="url(#ar1)"/>
+      <g class="f-slate"><rect x="180" y="220" width="320" height="56" rx="8"/>
+        <text class="d-th" x="340" y="241" text-anchor="middle" dominant-baseline="central">CloudFront + WAF + Shield</text>
+        <text class="d-ts" x="340" y="260" text-anchor="middle" dominant-baseline="central">通信の中身と発信元をふるい分け</text></g>
+      <line x1="340" y1="280" x2="340" y2="310" class="arr" marker-end="url(#ar1)"/>
+      <g class="f-clay"><rect x="180" y="316" width="320" height="56" rx="8"/>
+        <text class="d-th" x="340" y="337" text-anchor="middle" dominant-baseline="central">Internet Gateway</text>
+        <text class="d-ts" x="340" y="356" text-anchor="middle" dominant-baseline="central">VPCの唯一の出入り口</text></g>
+      <line x1="340" y1="376" x2="340" y2="406" class="arr" marker-end="url(#ar1)"/>
+      <g class="f-green"><rect x="180" y="412" width="320" height="56" rx="8"/>
+        <text class="d-th" x="340" y="433" text-anchor="middle" dominant-baseline="central">ALB / NLB</text>
+        <text class="d-ts" x="340" y="452" text-anchor="middle" dominant-baseline="central">どのサーバーへ振り分けるか</text></g>
+      <line x1="340" y1="472" x2="340" y2="502" class="arr" marker-end="url(#ar1)"/>
+      <g class="f-green"><rect x="180" y="508" width="320" height="56" rx="8"/>
+        <text class="d-th" x="340" y="529" text-anchor="middle" dominant-baseline="central">EC2 / コンテナ</text>
+        <text class="d-ts" x="340" y="548" text-anchor="middle" dominant-baseline="central">セキュリティグループで受信制限</text></g>
+      <line x1="340" y1="568" x2="340" y2="598" class="arr" marker-end="url(#ar1)"/>
+      <g class="f-green"><rect x="180" y="604" width="320" height="56" rx="8"/>
+        <text class="d-th" x="340" y="625" text-anchor="middle" dominant-baseline="central">RDS</text>
+        <text class="d-ts" x="340" y="644" text-anchor="middle" dominant-baseline="central">インターネットに公開しない</text></g>
+    </svg>
+    <figcaption>青の 2 つ（Route 53 / CloudFront）は VPC の外側、AWS のグローバルなエッジで動く。緑と赤は VPC の中。この内外の区別が最初の分かれ目になる。</figcaption>
+  </figure>
+
+  <h3>どこで何が絞られるか</h3>
+  <div class="tw"><table>
+    <thead><tr><th>制御するもの</th><th>何を制御するか</th><th>単位</th><th>イメージ</th></tr></thead>
+    <tbody>
+      <tr><td>Route 53</td><td>どの IP へ向かうか</td><td>ドメイン名</td><td>案内板</td></tr>
+      <tr><td>WAF</td><td>リクエストの中身、国、レート</td><td>CloudFront / ALB</td><td>手荷物検査</td></tr>
+      <tr><td>Shield</td><td>大量の攻撃トラフィック</td><td>エッジ全体</td><td>群衆の整理</td></tr>
+      <tr><td>Internet Gateway</td><td>VPC とインターネットの接続そのもの</td><td>VPC</td><td>正面玄関</td></tr>
+      <tr><td>ルートテーブル</td><td>どこへ行けるかという経路</td><td>サブネット</td><td>館内の通路</td></tr>
+      <tr><td>ネットワーク ACL</td><td>サブネットへの出入り（拒否も書ける）</td><td>サブネット</td><td>フロアの警備</td></tr>
+      <tr><td>セキュリティグループ</td><td>リソースへの出入り（許可のみ）</td><td>ENI</td><td>部屋のドアの鍵</td></tr>
+      <tr><td>NAT Gateway</td><td>内→外は通す、外→内は通さない</td><td>サブネット</td><td>一方通行の通用口</td></tr>
+      <tr><td>VPC エンドポイント</td><td>インターネットを通らない接続</td><td>VPC</td><td>建物内の直通路</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>同じ「止める」でも手段が違う</h3>
+  <ul>
+    <li><strong>来させない</strong> — Route 53（そもそも IP を教えない）</li>
+    <li><strong>中身で弾く</strong> — WAF（不正なリクエストパターン）</li>
+    <li><strong>道を作らない</strong> — ルートテーブル（プライベートサブネット化）</li>
+    <li><strong>ドアを閉める</strong> — セキュリティグループ（ポートとソース IP）</li>
+    <li><strong>フロアごと遮断</strong> — ネットワーク ACL（特定 IP の拒否）</li>
+    <li><strong>出るだけ許す</strong> — NAT Gateway</li>
+    <li><strong>公道を通らない</strong> — VPC エンドポイント / Direct Connect</li>
+  </ul>
+</section>
+
+<!-- ============ 03 ============ -->
+<section id="s3">
+  <div class="h2rule"><span class="n">03</span><h2>ビル1棟のたとえ</h2><span class="line"></span></div>
+
+  <p>
+    AWS という貸しビル街に自社専用のビルを 1 棟借りる。中をフロアに区切り、館内の通路を設計し、
+    正面玄関と通用口を付け、各部屋のドアに入室ルールを決める。
+    この構図がそのまま VPC の設計に対応します。
+  </p>
+
+  <figure>
+    <svg viewBox="0 0 680 665" role="img" aria-label="ビルの断面図としてのVPC構造。正面玄関、受付フロア、執務フロア、書庫フロア、館内の通路、通用口">
+      <defs><marker id="ar2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#7C8880" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+      <g class="f-green"><rect x="50" y="110" width="440" height="490" rx="20"/>
+        <text class="d-th" x="65" y="152" dominant-baseline="central">ビル1棟</text>
+        <text class="d-ts" x="65" y="170" dominant-baseline="central">VPC 10.0.0.0/16</text></g>
+      <g class="f-gray"><rect x="340" y="185" width="130" height="400" rx="8"/>
+        <text class="d-th" x="405" y="208" text-anchor="middle" dominant-baseline="central">館内の通路</text>
+        <text class="d-ts" x="405" y="228" text-anchor="middle" dominant-baseline="central">ルートテーブル</text>
+        <text class="d-ts" x="405" y="252" text-anchor="middle" dominant-baseline="central">経路が無いと</text>
+        <text class="d-ts" x="405" y="270" text-anchor="middle" dominant-baseline="central">行き来できない</text></g>
+      <g class="f-sand"><rect x="70" y="185" width="245" height="150" rx="12"/>
+        <text class="d-th" x="82" y="207" dominant-baseline="central">受付フロア</text>
+        <text class="d-ts" x="82" y="225" dominant-baseline="central">パブリックサブネット</text></g>
+      <rect class="d-box" x="82" y="240" width="220" height="36" rx="8"/>
+      <rect x="76" y="249" width="6" height="18" rx="2" fill="#A85C43"/>
+      <text class="d-t" x="192" y="258" text-anchor="middle" dominant-baseline="central">ALB（受付カウンター）</text>
+      <g class="f-slate"><rect x="70" y="350" width="245" height="110" rx="12"/>
+        <text class="d-th" x="82" y="372" dominant-baseline="central">執務フロア</text>
+        <text class="d-ts" x="82" y="390" dominant-baseline="central">プライベートサブネット</text></g>
+      <rect class="d-box" x="82" y="406" width="220" height="36" rx="8"/>
+      <rect x="76" y="415" width="6" height="18" rx="2" fill="#A85C43"/>
+      <text class="d-t" x="192" y="424" text-anchor="middle" dominant-baseline="central">EC2（社員の作業部屋）</text>
+      <g class="f-slate"><rect x="70" y="475" width="245" height="110" rx="12"/>
+        <text class="d-th" x="82" y="497" dominant-baseline="central">書庫フロア</text>
+        <text class="d-ts" x="82" y="515" dominant-baseline="central">DBサブネット</text></g>
+      <rect class="d-box" x="82" y="531" width="220" height="36" rx="8"/>
+      <rect x="76" y="540" width="6" height="18" rx="2" fill="#A85C43"/>
+      <text class="d-t" x="192" y="549" text-anchor="middle" dominant-baseline="central">RDS（施錠された書庫）</text>
+      <line x1="317" y1="260" x2="336" y2="260" class="arr" marker-end="url(#ar2)"/>
+      <line x1="317" y1="405" x2="336" y2="405" class="arr" marker-end="url(#ar2)"/>
+      <line x1="317" y1="530" x2="336" y2="530" class="arr" marker-end="url(#ar2)"/>
+      <g class="f-gray"><rect x="180" y="24" width="180" height="36" rx="8"/>
+        <text class="d-th" x="270" y="42" text-anchor="middle" dominant-baseline="central">インターネット</text></g>
+      <line x1="270" y1="64" x2="270" y2="84" class="arr" marker-end="url(#ar2)"/>
+      <g class="f-clay"><rect x="196" y="88" width="148" height="48" rx="6"/>
+        <text class="d-th" x="270" y="105" text-anchor="middle" dominant-baseline="central">正面玄関</text>
+        <text class="d-ts" x="270" y="123" text-anchor="middle" dominant-baseline="central">Internet Gateway</text></g>
+      <line x1="270" y1="140" x2="270" y2="181" class="arr" marker-end="url(#ar2)"/>
+      <g class="f-clay"><rect x="82" y="284" width="220" height="42" rx="8"/>
+        <text class="d-th" x="192" y="298" text-anchor="middle" dominant-baseline="central">通用口</text>
+        <text class="d-ts" x="192" y="316" text-anchor="middle" dominant-baseline="central">NAT ゲートウェイ</text></g>
+      <rect x="150" y="620" width="6" height="14" rx="2" fill="#A85C43"/>
+      <text class="d-ts" x="164" y="627" dominant-baseline="central">各部屋のドア＝セキュリティグループ（リソースごとの入室ルール）</text>
+      <text class="d-ts" x="340" y="650" text-anchor="middle">砂色＝外とつながるフロア　青灰＝外から到達できないフロア</text>
+    </svg>
+    <figcaption>赤枠の 2 つだけが実際にトラフィックを通す装置。ほかは器（ビル・フロア）と設計図（通路図）にあたる。</figcaption>
+  </figure>
+
+  <div class="note stop">
+    <span class="lab">最大の誤解ポイント</span>
+    <p>サブネットに「パブリック」「プライベート」という設定項目は<strong>存在しません</strong>。
+    違いはルートテーブルに <code>0.0.0.0/0 → igw-xxx</code> が書かれているかどうか、それだけです。
+    隠しているのではなく<strong>道が無い</strong>状態であり、これが AWS で最も強力な防御になります。</p>
+  </div>
+
+  <h3 id="s3-1">6 つの用語</h3>
+
+  <h4>VPC — 自社専用のビル1棟</h4>
+  <p>
+    AWS の中に確保した閉じたネットワーク空間。作成時に住所の範囲を決めます。
+    <code>10.0.0.0/16</code> なら約 6.5 万個の IP を使う宣言です。
+    <strong>CIDR は後から縮められない</strong>ので、迷ったら <code>/16</code>。
+    社内ネットワークと将来つなぐ予定があるなら、IP 範囲が重複しないようにします。
+  </p>
+
+  <h4>サブネット — ビル内のフロア</h4>
+  <p>
+    VPC の住所範囲を用途ごとに切り分けた区画。<strong>必ず 1 つのアベイラビリティゾーンに閉じる</strong>ため、
+    同じ用途のサブネットを <code>1a</code> と <code>1c</code> の 2 つ作るのが基本形です。
+    <code>/24</code> は 256 個に見えますが、AWS が 5 個予約するので実際に使えるのは 251 個です。
+  </p>
+  <div class="tw"><table>
+    <caption>典型的な切り方</caption>
+    <thead><tr><th>サブネット</th><th>CIDR</th><th>用途</th></tr></thead>
+    <tbody>
+      <tr><td>public-1a / 1c</td><td>10.0.1.0/24 · 10.0.2.0/24</td><td>ALB、NAT Gateway</td></tr>
+      <tr><td>private-1a / 1c</td><td>10.0.11.0/24 · 10.0.12.0/24</td><td>EC2、アプリケーション</td></tr>
+      <tr><td>db-1a / 1c</td><td>10.0.21.0/24 · 10.0.22.0/24</td><td>RDS</td></tr>
+    </tbody>
+  </table></div>
+
+  <h4>ルートテーブル — 館内の通路図</h4>
+  <p>「この宛先へ行くには、この出口を通れ」という道案内のリスト。ここに書かれていない場所へは、物理的に行く手段がありません。</p>
+  <div class="tw"><table>
+    <caption>パブリックサブネット用</caption>
+    <thead><tr><th>送信先</th><th>ターゲット</th><th>意味</th></tr></thead>
+    <tbody>
+      <tr><td>10.0.0.0/16</td><td>local</td><td>自分の VPC 内。自動で作られ削除できない</td></tr>
+      <tr><td>0.0.0.0/0</td><td>igw-0a1b2c3d</td><td>上記以外すべて。Internet Gateway へ流す</td></tr>
+    </tbody>
+  </table></div>
+  <p>プライベートサブネット用は 2 行目が <code>nat-xxxxx</code> になります。ルートは<strong>より具体的な指定が優先</strong>されるため、範囲の狭い <code>10.0.0.0/16</code> が先に効きます。</p>
+
+  <h4>Internet Gateway — ビルの正面玄関</h4>
+  <p>
+    VPC とインターネットをつなぐ唯一の出入り口。作業は「作成して VPC にアタッチ」「ルートテーブルに経路を書く」の 2 手順だけです。
+    <strong>アタッチしただけでは何も起きません</strong>。正門を設置しても、案内図に載らなければ誰もたどり着けないからです。
+    加えてパブリック IP（または Elastic IP）も必要になります。IGW 自体は無料で、冗長化と帯域は AWS 側が面倒を見ます。
+  </p>
+
+  <h4>NAT Gateway — 社員専用の通用口</h4>
+  <p>
+    プライベートサブネットの EC2 でも <code>yum update</code> や外部 API 呼び出しで外に出たい。
+    でも公開はしたくない。この矛盾を解決します。
+  </p>
+
+  <figure>
+    <svg viewBox="0 0 680 300" role="img" aria-label="NATゲートウェイは内から外への通信のみ通し、外から中への通信は遮断する">
+      <defs><marker id="ar3" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#7C8880" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+      <text class="d-ts" x="345" y="46" text-anchor="middle">内から外へは出られる</text>
+      <rect class="d-box" x="340" y="30" width="10" height="230" rx="3"/>
+      <g class="f-slate"><rect x="60" y="82" width="180" height="46" rx="8"/>
+        <text class="d-th" x="150" y="105" text-anchor="middle" dominant-baseline="central">EC2（社内の部屋）</text></g>
+      <g class="f-gray"><rect x="450" y="82" width="180" height="46" rx="8"/>
+        <text class="d-th" x="540" y="105" text-anchor="middle" dominant-baseline="central">インターネット</text></g>
+      <line x1="246" y1="105" x2="298" y2="105" class="arr" marker-end="url(#ar3)"/>
+      <line x1="392" y1="105" x2="444" y2="105" class="arr" marker-end="url(#ar3)"/>
+      <g class="f-clay"><rect x="305" y="70" width="80" height="70" rx="8"/>
+        <text class="d-th" x="345" y="96" text-anchor="middle" dominant-baseline="central">NAT GW</text>
+        <text class="d-ts" x="345" y="116" text-anchor="middle" dominant-baseline="central">通用口</text></g>
+      <line x1="444" y1="190" x2="362" y2="190" class="arr" marker-end="url(#ar3)"/>
+      <line x1="336" y1="181" x2="354" y2="199" stroke="#7E3229" stroke-width="2.5" stroke-linecap="round"/>
+      <line x1="354" y1="181" x2="336" y2="199" stroke="#7E3229" stroke-width="2.5" stroke-linecap="round"/>
+      <text class="d-ts" x="480" y="228" text-anchor="middle">外から中へは入れない</text>
+    </svg>
+    <figcaption>NAT が送信元を自分の IP に書き換えて代理通信するため、外部から EC2 を名指しで呼ぶ手段が存在しない。</figcaption>
+  </figure>
+
+  <div class="note warn">
+    <span class="lab">配置とコスト</span>
+    <p>NAT Gateway は<strong>パブリックサブネットに置きます</strong>。NAT 自身が外に出られなければ意味がないからです。
+    また常時課金（東京でおよそ月 5,000 円前後）＋データ処理料がかかり、AZ ごとに置けば台数分になります。
+    検証環境では止める、S3 アクセスは VPC エンドポイントに逃がす、といった工夫が効きます。</p>
+  </div>
+
+  <h4>セキュリティグループ — 部屋のドアの入室ルール</h4>
+  <p>リソース 1 台ごとに付く「誰からのどの通信を受け入れるか」のルールです。</p>
+  <div class="tw"><table>
+    <caption>Web サーバー用のインバウンドルール</caption>
+    <thead><tr><th>タイプ</th><th>ポート</th><th>ソース</th><th>意味</th></tr></thead>
+    <tbody>
+      <tr><td>HTTP</td><td>80</td><td>0.0.0.0/0</td><td>誰でも閲覧できる</td></tr>
+      <tr><td>HTTPS</td><td>443</td><td>0.0.0.0/0</td><td>誰でも閲覧できる</td></tr>
+      <tr><td>SSH</td><td>22</td><td>203.0.113.10/32</td><td>この IP からのみ管理接続</td></tr>
+    </tbody>
+  </table></div>
+  <p>
+    最大の武器は、ソースに <strong>IP ではなく別のセキュリティグループを指定できる</strong>ことです。
+    DB 側に「ソース = <code>sg-web</code>」と書けば、EC2 が増減して IP が変わってもルールを直す必要がありません。
+  </p>
+
+  <h3 id="s3-2">セキュリティグループとネットワーク ACL</h3>
+  <div class="tw"><table>
+    <thead><tr><th></th><th>セキュリティグループ</th><th>ネットワーク ACL</th></tr></thead>
+    <tbody>
+      <tr><td>適用先</td><td>インスタンス（ENI）</td><td>サブネット</td></tr>
+      <tr><td>ルール</td><td>許可のみ</td><td>許可と拒否の両方</td></tr>
+      <tr><td>状態管理</td><td>ステートフル</td><td>ステートレス</td></tr>
+      <tr><td>デフォルト</td><td>受信すべて拒否 / 送信すべて許可</td><td>すべて許可</td></tr>
+    </tbody>
+  </table></div>
+  <p>
+    <strong>ステートフル</strong>とは「行きを許可すれば帰りは自動的に通る」という意味です。
+    セキュリティグループで 80 番の受信を許可すれば、応答は何も設定しなくても返ります。
+    一方ネットワーク ACL はステートレスなので、戻り用にエフェメラルポート（1024–65535）宛の送信ルールも書かないと通信が成立しません。
+  </p>
+  <p>
+    実務では<strong>普段はセキュリティグループだけで設計し、ネットワーク ACL はデフォルトのまま</strong>にするのが一般的です。
+    触るのは「特定 IP を完全にブロックしたい」など、拒否ルールが必要な場面に限られます。
+  </p>
+
+  <h3 id="s3-3">つながらないときのチェック順</h3>
+  <p>Web サイトを公開するには次の 3 つが<strong>すべて</strong>必要です。裏を返せば、これがそのまま切り分けの順番になります。</p>
+  <ol class="steps">
+    <li><b>経路</b><p>ルートテーブルに <code>0.0.0.0/0 → IGW</code> があるか。つまりパブリックサブネットにいるか。</p></li>
+    <li><b>住所</b><p>パブリック IP または Elastic IP を持っているか。</p></li>
+    <li><b>許可</b><p>セキュリティグループで該当ポートの受信を許可しているか。</p></li>
+  </ol>
+  <p>ここまでで見つからなければ、ネットワーク ACL → OS 側のファイアウォール → アプリのリッスン設定、の順に降りていきます。</p>
+
+  <h4>構築の順番</h4>
+  <pre><code>VPC を作る
+ → サブネットを切る（AZ ごとに 2 つずつ）
+ → IGW を作ってアタッチ
+ → ルートテーブルを作り、サブネットに紐づける
+ → NAT Gateway をパブリックサブネットに置く
+ → セキュリティグループを作り、リソースに付ける</code></pre>
+</section>
+
+<!-- ============ 04 ============ -->
+<section id="s4">
+  <div class="h2rule"><span class="n">04</span><h2>API Gateway でできること</h2><span class="line"></span></div>
+
+  <p>バックエンド（Lambda、EC2、ECS、他社 API など）の手前に立って、共通処理を肩代わりするサービスです。認証やログをアプリ側で実装しなくてよくなるのが最大の価値になります。</p>
+
+  <div class="tw"><table>
+    <thead><tr><th>できること</th><th>内容</th></tr></thead>
+    <tbody>
+      <tr><td>ルーティング</td><td>パスやメソッドごとに別々のバックエンドへ振り分ける</td></tr>
+      <tr><td>認証・認可</td><td>IAM、Cognito、JWT、Lambda オーソライザーで門前払い</td></tr>
+      <tr><td>流量制御</td><td>スロットリング（rps）とクォータ（月間上限）</td></tr>
+      <tr><td>リクエスト検証</td><td>必須パラメータや JSON スキーマを検査し、不正なら 400 を即返す</td></tr>
+      <tr><td>変換</td><td>リクエスト・レスポンスの形を書き換える</td></tr>
+      <tr><td>キャッシュ</td><td>同じリクエストへの応答を保持し、バックエンドを叩かない</td></tr>
+      <tr><td>CORS 対応</td><td>プリフライト応答を自動生成</td></tr>
+      <tr><td>監視</td><td>アクセスログ、実行ログ、メトリクス、X-Ray</td></tr>
+      <tr><td>公開制御</td><td>独自ドメイン、社内限定公開、WAF 連携</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>3 つのタイプ</h3>
+  <div class="tw"><table>
+    <thead><tr><th></th><th>REST API</th><th>HTTP API</th><th>WebSocket API</th></tr></thead>
+    <tbody>
+      <tr><td>位置づけ</td><td>高機能・従来型</td><td>軽量・低コスト</td><td>双方向通信</td></tr>
+      <tr><td>料金</td><td>標準</td><td>REST の約 3 割</td><td>標準</td></tr>
+      <tr><td>API キー・使用量プラン</td><td class="yes">○</td><td class="no">✕</td><td class="no">✕</td></tr>
+      <tr><td>キャッシュ</td><td class="yes">○</td><td class="no">✕</td><td class="no">✕</td></tr>
+      <tr><td>WAF 連携</td><td class="yes">○</td><td class="no">✕</td><td class="no">✕</td></tr>
+      <tr><td>プライベート公開</td><td class="yes">○</td><td class="no">✕</td><td class="no">✕</td></tr>
+      <tr><td>リクエスト変換</td><td class="yes">○</td><td>△ 簡易のみ</td><td class="yes">○</td></tr>
+      <tr><td>JWT オーソライザー</td><td class="no">✕</td><td class="yes">○</td><td class="no">✕</td></tr>
+      <tr><td>実行ログ・X-Ray</td><td class="yes">○</td><td>アクセスログのみ</td><td class="yes">○</td></tr>
+    </tbody>
+  </table></div>
+  <p>
+    シンプルな社内 API・低コスト重視なら HTTP API。外部公開して API キーで課金したい、WAF を付けたい、
+    社内限定にしたいなら REST API。常時接続なら WebSocket API です。
+  </p>
+
+  <h3>4 階層で覚える</h3>
+  <pre><code>API（例：注文API）
+ └ ステージ（例：prod, dev）  ← ログ・スロットリング・キャッシュはここ
+    └ リソース（例：/orders/{id}）  ← URL のパス
+       └ メソッド（例：GET, POST）  ← 個別上書きも可能
+          └ 統合（Lambda, HTTP, VPC Link など）</code></pre>
+  <p><strong>運用系の設定の多くがステージ単位</strong>である点が、後の分離の話の土台になります。</p>
+
+  <h3>主な設定項目</h3>
+  <div class="tw"><table>
+    <thead><tr><th>分類</th><th>設定</th><th>単位</th></tr></thead>
+    <tbody>
+      <tr><td rowspan="4">公開</td><td>エンドポイントタイプ（Edge / Regional / Private）</td><td>API</td></tr>
+      <tr><td>カスタムドメイン名、ベースパスマッピング</td><td>ドメイン</td></tr>
+      <tr><td>リソースポリシー（IP 制限、VPC エンドポイント限定）</td><td>API</td></tr>
+      <tr><td>WAF の関連付け</td><td>ステージ</td></tr>
+      <tr><td rowspan="2">認証</td><td>オーソライザー（IAM / Cognito / Lambda / JWT）</td><td>メソッド</td></tr>
+      <tr><td>API キー・使用量プラン</td><td>ステージ＋API キー</td></tr>
+      <tr><td rowspan="2">流量</td><td>スロットリング（レート・バースト）</td><td>ステージ / メソッド</td></tr>
+      <tr><td>クォータ（日・週・月ごとの上限）</td><td>使用量プラン</td></tr>
+      <tr><td>性能</td><td>キャッシュ有効化、TTL、キャッシュキー</td><td>ステージ / メソッド</td></tr>
+      <tr><td rowspan="2">入出力</td><td>リクエストバリデータ、モデル、マッピングテンプレート</td><td>メソッド</td></tr>
+      <tr><td>CORS 設定</td><td>リソース</td></tr>
+      <tr><td>バックエンド</td><td>統合タイプ、VPC Link、タイムアウト（最大 29 秒）</td><td>メソッド</td></tr>
+      <tr><td rowspan="3">運用</td><td>アクセスログ（出力先・フォーマット）</td><td>ステージ</td></tr>
+      <tr><td>実行ログのレベル、詳細メトリクス、X-Ray</td><td>ステージ</td></tr>
+      <tr><td>ステージ変数、カナリアリリース</td><td>ステージ</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<!-- ============ 05 ============ -->
+<section id="s45">
+  <div class="h2rule"><span class="n">05</span><h2>主要な設定の詳細</h2><span class="line"></span></div>
+
+  <p>
+    前章の一覧に出てきた設定を、ひとつずつ掘り下げます。
+    どれも「既定のままだと何も守られていない」ものばかりで、
+    <strong>作った時点では有効になっていない</strong>という共通点があります。
+  </p>
+
+  <h3 id="s45-log">ログと監視</h3>
+
+  <h4>アクセスログ</h4>
+  <p>
+    リクエスト 1 件につき 1 行、指定した CloudWatch ロググループへ出力されます。
+    ステージ →「ログとトレース」で有効化し、<strong>出力先とフォーマットを自分で決める</strong>のが特徴です。
+    フォーマットは JSON にしておくと、CloudWatch Logs Insights で構造化クエリが打てます。
+  </p>
+  <div class="tw"><table>
+    <caption>よく使う $context 変数</caption>
+    <thead><tr><th>変数</th><th>入る値</th><th>用途</th></tr></thead>
+    <tbody>
+      <tr><td><code>$context.requestId</code></td><td>リクエスト固有の ID</td><td>問い合わせ対応で 1 件を特定する</td></tr>
+      <tr><td><code>$context.domainName</code></td><td>叩かれたドメイン名</td><td><strong>複数ドメインが同じ API を指す場合の切り分け</strong></td></tr>
+      <tr><td><code>$context.stage</code></td><td>ステージ名</td><td>ステージが機能グループを兼ねている場合の切り分け</td></tr>
+      <tr><td><code>$context.resourcePath</code></td><td><code>/orders/{id}</code> 形式のパス</td><td>エンドポイント別の集計</td></tr>
+      <tr><td><code>$context.status</code></td><td>API Gateway が返したステータス</td><td>4xx / 5xx の検知</td></tr>
+      <tr><td><code>$context.integration.status</code></td><td>バックエンドが返したステータス</td><td>API Gateway 起因か Lambda 起因かの切り分け</td></tr>
+      <tr><td><code>$context.responseLatency</code></td><td>全体の所要時間（ms）</td><td>遅延の把握</td></tr>
+      <tr><td><code>$context.integrationLatency</code></td><td>バックエンドの所要時間（ms）</td><td>上との差が API Gateway 側のオーバーヘッド</td></tr>
+      <tr><td><code>$context.identity.sourceIp</code></td><td>クライアント IP</td><td>不審なアクセス元の特定</td></tr>
+      <tr><td><code>$context.identity.apiKey</code></td><td>使われた API キー</td><td>利用者別の集計</td></tr>
+      <tr><td><code>$context.error.message</code></td><td>エラー内容</td><td>認証失敗やスロットリングの理由</td></tr>
+    </tbody>
+  </table></div>
+  <p>
+    <code>responseLatency</code> と <code>integrationLatency</code> を両方入れておくのがコツです。
+    差分がそのまま API Gateway 側のオーバーヘッドになるので、遅いときにどちらを直すべきか即座に分かります。
+  </p>
+  <div class="note warn">
+    <span class="lab">ロググループの置き場所</span>
+    <p>
+      出力先は自由に指定できてしまうため、Lambda 用の名前空間に混ざってしまうことがあります。
+      <code>/aws/apigateway/{システム}/{API}-{ステージ}/access</code> のように
+      <strong>API Gateway 用の階層を切っておく</strong>と、権限設計も保持期間の管理も楽になります。
+      保持期間は既定で「無期限」なので、作成後に必ず設定してください。
+    </p>
+  </div>
+
+  <h4>実行ログ</h4>
+  <p>
+    アクセスログが「結果の 1 行」なのに対し、実行ログは <strong>API Gateway の内部処理を逐一記録</strong>したものです。
+    オーソライザーの判定、マッピングテンプレートの適用、統合先への送信内容などが出ます。
+    出力先は <code>API-Gateway-Execution-Logs_{api-id}/{stage}</code> に固定され、選べません。
+  </p>
+  <div class="tw"><table>
+    <thead><tr><th>レベル</th><th>出力内容</th><th>使いどころ</th></tr></thead>
+    <tbody>
+      <tr><td>OFF</td><td>出力なし</td><td>既定値。何も追えない</td></tr>
+      <tr><td>ERROR</td><td>エラー時のみ</td><td><strong>本番の推奨設定</strong></td></tr>
+      <tr><td>INFO</td><td>全リクエストの処理過程</td><td>開発・調査時</td></tr>
+    </tbody>
+  </table></div>
+  <div class="note stop">
+    <span class="lab">データトレースの取り扱い</span>
+    <p>
+      「完全なリクエストとレスポンスのデータをログに記録」（<code>dataTraceEnabled</code>）を有効にすると、
+      <strong>リクエストボディとヘッダーがそのままログに残ります</strong>。
+      個人情報、認証トークン、決済情報が平文で CloudWatch に蓄積されるため、
+      本番環境では必ずオフにしてください。調査で一時的に入れた場合は、戻し忘れに注意が必要です。
+    </p>
+  </div>
+
+  <h4>詳細メトリクス</h4>
+  <p>
+    既定では API 単位の <code>Count</code> / <code>4XXError</code> / <code>5XXError</code> /
+    <code>Latency</code> しか取れません。有効化すると<strong>メソッド単位</strong>で同じ指標が取れるようになり、
+    「どのエンドポイントが遅いか」が特定できます。
+    ただしメトリクス数が一気に増えるため、CloudWatch のカスタムメトリクス料金がかかります。
+    エンドポイントが多い API では、有効化前にコストを見積もってください。
+  </p>
+
+  <h4>X-Ray トレース</h4>
+  <p>
+    API Gateway → Lambda → DynamoDB といった<strong>1 リクエストの旅路</strong>を可視化します。
+    どのサービスで何ミリ秒かかったかがグラフで見えるため、
+    分散構成の遅延調査では実行ログより早く原因にたどり着けます。常時有効にする必要はなく、
+    サンプリング率を絞って回すのが実用的です。
+  </p>
+
+  <h3 id="s45-thr">スロットリング</h3>
+  <p>
+    <strong>1 秒あたり何回までリクエストを受け付けるか</strong>の上限です。
+    超過分には 429 Too Many Requests が返り、バックエンドには届きません。
+    トークンバケットという方式で動いています。
+  </p>
+
+  <figure>
+    <svg viewBox="0 0 680 310" role="img" aria-label="スロットリングのトークンバケット方式。毎秒レート分のトークンが補充され、バケツの容量がバースト上限にあたる">
+      <defs><marker id="ar6" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#7C8880" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+      <g class="f-green"><rect x="250" y="30" width="180" height="44" rx="8"/>
+        <text class="d-th" x="340" y="52" text-anchor="middle" dominant-baseline="central">毎秒レート分を補充</text></g>
+      <line x1="340" y1="78" x2="340" y2="96" class="arr" marker-end="url(#ar6)"/>
+      <g class="f-sand"><rect x="250" y="100" width="180" height="170" rx="8"/>
+        <text class="d-th" x="340" y="124" text-anchor="middle" dominant-baseline="central">バケツ</text>
+        <text class="d-ts" x="340" y="143" text-anchor="middle" dominant-baseline="central">容量＝バースト</text></g>
+      <circle cx="277" cy="175" r="9" fill="#A8813C"/><circle cx="309" cy="175" r="9" fill="#A8813C"/><circle cx="341" cy="175" r="9" fill="#A8813C"/><circle cx="373" cy="175" r="9" fill="#A8813C"/><circle cx="405" cy="175" r="9" fill="#A8813C"/>
+      <circle cx="277" cy="207" r="9" fill="#A8813C"/><circle cx="309" cy="207" r="9" fill="#A8813C"/><circle cx="341" cy="207" r="9" fill="#A8813C"/><circle cx="373" cy="207" r="9" fill="#A8813C"/><circle cx="405" cy="207" r="9" fill="#A8813C"/>
+      <circle cx="277" cy="239" r="9" fill="#A8813C"/><circle cx="309" cy="239" r="9" fill="#A8813C"/><circle cx="341" cy="239" r="9" fill="#A8813C"/><circle cx="373" cy="239" r="9" fill="#A8813C"/><circle cx="405" cy="239" r="9" fill="#A8813C"/>
+      <g class="f-gray"><rect x="40" y="128" width="100" height="44" rx="8"/>
+        <text class="d-th" x="90" y="150" text-anchor="middle" dominant-baseline="central">リクエスト</text></g>
+      <line x1="144" y1="150" x2="246" y2="150" class="arr" marker-end="url(#ar6)"/>
+      <line x1="434" y1="150" x2="496" y2="150" class="arr" marker-end="url(#ar6)"/>
+      <g class="f-green"><rect x="500" y="128" width="140" height="44" rx="8"/>
+        <text class="d-th" x="570" y="150" text-anchor="middle" dominant-baseline="central">通過</text></g>
+      <line x1="434" y1="218" x2="496" y2="218" class="arr" marker-end="url(#ar6)"/>
+      <g class="f-clay"><rect x="500" y="196" width="140" height="44" rx="8"/>
+        <text class="d-th" x="570" y="218" text-anchor="middle" dominant-baseline="central">空なら 429</text></g>
+    </svg>
+    <figcaption>リクエスト 1 件がトークン 1 個を消費する。バケツが空なら 429。</figcaption>
+  </figure>
+
+  <div class="tw"><table>
+    <thead><tr><th>設定値</th><th>意味</th><th>効く場面</th></tr></thead>
+    <tbody>
+      <tr><td>レート（rps）</td><td>毎秒どれだけトークンが補充されるか</td><td>平常時の上限</td></tr>
+      <tr><td>バースト</td><td>バケツに貯められるトークンの最大数</td><td>一瞬のピーク</td></tr>
+    </tbody>
+  </table></div>
+  <p>
+    レート 100・バースト 500 なら、平常は毎秒 100 件まで。暇な時間が続いてバケツが満タンなら、
+    一瞬だけ 500 件を受け止められます。貯金を使い切ったあとは毎秒 100 件のペースに戻ります。
+    <strong>アクセスが均されないシステムほどバーストを大きめに</strong>します。
+  </p>
+
+  <h4>4 つの階層と優先順位</h4>
+  <div class="tw"><table>
+    <thead><tr><th>階層</th><th>設定場所</th><th>効き方</th></tr></thead>
+    <tbody>
+      <tr><td>アカウント</td><td>リージョンごとの上限（既定 10,000 rps / バースト 5,000）</td><td><strong>全 API で共有</strong>。すべての上限</td></tr>
+      <tr><td>ステージ</td><td>ステージの詳細</td><td>そのステージ全体の既定値</td></tr>
+      <tr><td>メソッド</td><td>ステージ内のメソッド設定</td><td>特定エンドポイントだけ上書き</td></tr>
+      <tr><td>使用量プラン</td><td>使用量プラン＋API キー</td><td>利用者ごとに個別の上限とクォータ</td></tr>
+    </tbody>
+  </table></div>
+  <p>
+    実際に効くのは<strong>これらのうち最も厳しい値</strong>です。メソッド設定はステージ設定を上書きし、
+    使用量プランは API キー単位で別枠を持ちます。
+  </p>
+
+  <div class="note stop">
+    <span class="lab">10,000 は「無制限」と同じ</span>
+    <p>
+      10,000 rps はアカウントのリージョン上限そのものです。この値が入っているのは
+      <strong>実質的に制限していない</strong>状態で、テンプレートの既定値がそのまま残っているケースがほとんどです。
+      この枠はアカウント全体で共有されるため、1 本の API が使い切ると、
+      関係のない他の API まで 429 を返し始めます。しかも上限が無ければ止める手段がありません。
+      各 API に個別の上限を入れておけば、暴走した API だけが 429 になり、他は無傷で済みます。
+    </p>
+  </div>
+
+  <h4>値の決め方</h4>
+  <p>
+    勘で決める必要はありません。CloudWatch の <code>AWS/ApiGateway</code> の <code>Count</code> を
+    API 名ごとに <strong>1 分間の最大値</strong>で見て、60 で割れば実測のピーク rps が出ます。
+    そこに 3〜5 倍の余裕を持たせた値が目安です。実測ピークが 20 rps なら、
+    レート 100・バースト 200 で十分ということになります。
+  </p>
+
+  <h3 id="s45-sec">保護と公開範囲</h3>
+
+  <h4>WAF（Web ACL）</h4>
+  <p>
+    ステージに Web ACL を関連付けると、リクエストが API Gateway に届く前に検査されます。
+    SQL インジェクション、XSS、既知の悪性 IP、国別ブロック、レート制限などをルールで定義します。
+    AWS 管理ルールグループを使えば、自前でルールを書かずに一般的な攻撃を防げます。
+  </p>
+  <div class="note warn">
+    <span class="lab">導入はカウントモードから</span>
+    <p>
+      いきなりブロックモードで入れると、正常なリクエストが誤検知で弾かれる可能性があります。
+      まず<strong>カウントモード</strong>で数日運用し、CloudWatch のサンプルログで
+      「本来通すべきものが引っかかっていないか」を確認してからブロックに切り替えてください。
+    </p>
+  </div>
+
+  <h4>リソースポリシー</h4>
+  <p>
+    API 単位で「誰からのアクセスを許すか」を JSON で定義します。
+    セキュリティグループのような役割で、次のような制御ができます。
+  </p>
+  <ul>
+    <li>特定の送信元 IP レンジからのみ許可（社内 NAT の IP など）</li>
+    <li>特定の VPC エンドポイント経由のみ許可（Private API と組み合わせる）</li>
+    <li>特定の AWS アカウントや IAM プリンシパルのみ許可</li>
+  </ul>
+  <p>WAF より手前で効き、条件がシンプルな場合はこちらのほうが確実かつ無料です。</p>
+
+  <h4>既定エンドポイントの無効化</h4>
+  <p>
+    カスタムドメインを設定しても、<code>https://{api-id}.execute-api.{region}.amazonaws.com/{stage}</code>
+    という既定の URL は生きたままです。<code>disableExecuteApiEndpoint</code> を有効にすると、この経路を塞げます。
+  </p>
+  <div class="note stop">
+    <span class="lab">迂回されると防御が効かない</span>
+    <p>
+      既定エンドポイントが開いていると、<strong>カスタムドメインに掛けた保護を素通りされます</strong>。
+      特にドメイン側で相互 TLS や TLS バージョンを制御している場合、その制約が一切効きません。
+      API ID が推測しにくいことに依存するのは防御とは言えないので、
+      カスタムドメイン運用に切り替えたら必ず無効化してください。
+    </p>
+  </div>
+
+  <h4>TLS セキュリティポリシー</h4>
+  <p>
+    カスタムドメインごとに、受け付ける TLS のバージョンを指定します。
+    <code>TLS_1_0</code> は古い暗号スイートを含むため、現在は <strong>TLS 1.2 以上が推奨</strong>です。
+    引き上げる前に、古い端末や社内バッチなど TLS 1.0 でしか繋げないクライアントがいないか、
+    アクセスログの User-Agent で確認してください。
+  </p>
+
+  <h4>オーソライザー</h4>
+  <div class="tw"><table>
+    <thead><tr><th>種類</th><th>判定するもの</th><th>使いどころ</th></tr></thead>
+    <tbody>
+      <tr><td>IAM</td><td>SigV4 署名</td><td>AWS 内部のサービス間通信</td></tr>
+      <tr><td>Cognito</td><td>Cognito ユーザープールのトークン</td><td>自社アプリのログインユーザー</td></tr>
+      <tr><td>Lambda オーソライザー</td><td>自前のロジック</td><td>独自トークン、外部 IdP、複雑な条件</td></tr>
+      <tr><td>API キー</td><td>x-api-key ヘッダー</td><td>利用者の識別と流量管理（認証ではない）</td></tr>
+    </tbody>
+  </table></div>
+  <p>
+    <strong>API キーは認証手段ではありません</strong>。ヘッダーに載るだけで漏れやすいため、
+    「誰が使っているかを数える」「利用者ごとに流量を分ける」ための識別子として扱ってください。
+    Lambda オーソライザーは判定結果をキャッシュできるので、TTL を設定して呼び出し回数を抑えます。
+  </p>
+
+  <h3 id="s45-ops">運用と管理</h3>
+
+  <h4>キャッシュ</h4>
+  <p>
+    ステージ単位で有効化し、0.5GB〜237GB の容量を選びます。同じリクエストへの応答を保持し、
+    バックエンドを叩かずに返します。マスタデータの参照など、更新頻度が低く読み取りが多い API で効果的です。
+  </p>
+  <div class="note warn">
+    <span class="lab">有効化しただけでは効かない</span>
+    <p>
+      ステージでキャッシュクラスタを起動しても、<strong>メソッド側で個別に有効化しないとキャッシュされません</strong>。
+      クラスタだけ立っている状態は、料金だけ発生して効果ゼロです。
+      キャッシュは<strong>起動している間ずっと時間課金</strong>されるため、使っていないなら停止してください。
+      また、認証結果によって内容が変わる API では、キャッシュキーにヘッダーを含めないと
+      別ユーザーの応答を返す事故につながります。
+    </p>
+  </div>
+
+  <h4>タグ</h4>
+  <p>
+    API 単位で付けるラベルです。Cost Explorer でコスト配分キーとして有効化すると、
+    タグ別の費用内訳が見えるようになります。<strong>軸を分けて持つ</strong>のがコツです。
+  </p>
+  <div class="tw"><table>
+    <thead><tr><th>キー</th><th>値の例</th><th>これで何が分かるか</th></tr></thead>
+    <tbody>
+      <tr><td><code>Env</code></td><td>prod / stg / dev</td><td>環境ごとの費用と棚卸し</td></tr>
+      <tr><td><code>System</code></td><td>commapi</td><td>システム単位の集計</td></tr>
+      <tr><td><code>Owner</code></td><td>担当者名</td><td>問い合わせ先。放置リソースの持ち主特定</td></tr>
+      <tr><td><code>Name</code></td><td>API 名</td><td>コンソール上の識別</td></tr>
+    </tbody>
+  </table></div>
+  <p>
+    <code>Env</code> と <code>System</code> を分けて持てば、「開発環境全体」と「特定機能」の
+    両方向から集計できます。ドメイン名に環境と機能が混ざっていても、タグ側で整理できます。
+  </p>
+
+  <h4>IAM 権限</h4>
+  <p>
+    API Gateway のリソース ARN は <code>arn:aws:apigateway:{region}::/restapis/{api-id}/*</code> の形です。
+    ポリシーのリソースをここまで絞れば、<strong>チームごとにデプロイできる API を限定</strong>できます。
+    絞っていないと、担当外の API を誤ってデプロイしたり削除したりする事故が起きます。
+  </p>
+  <p>
+    なお <code>apigateway:GET</code> は参照、<code>apigateway:POST</code> はデプロイ作成、
+    <code>apigateway:PATCH</code> は設定変更に対応します。読み取り専用の権限を配るときはこの単位で考えます。
+  </p>
+
+  <h4>ステージ変数</h4>
+  <p>
+    ステージごとに値を持てる変数です。統合先の Lambda エイリアスを
+    <code>${stageVariables.alias}</code> のように書いておけば、
+    <strong>同じ API 定義のまま、ステージによって呼び出す Lambda を切り替え</strong>られます。
+    環境や機能グループをステージで分けている場合、この仕組みが土台になります。
+  </p>
+
+  <h4>カナリアリリース</h4>
+  <p>
+    新しいデプロイに対して、トラフィックの一部（例：5%）だけを流す機能です。
+    メトリクスを見ながら比率を上げていき、問題があれば即座に戻せます。
+    ステージ変数もカナリア側だけ別の値を持てるため、新旧の Lambda を並走させられます。
+  </p>
+
+  <div class="note">
+    <span class="lab">まとめ</span>
+    <p>
+      ここまでの設定はすべて<strong>ステージまたは API 単位</strong>で、作成直後は無効か既定値です。
+      新しく API を作ったら、少なくとも「アクセスログ」「実行ログ ERROR」「スロットリング」「タグ」の
+      4 点は必ず入れる、という運用ルールにしておくと事故が減ります。
+    </p>
+  </div>
+</section>
+
+<!-- ============ 06 ============ -->
+<section id="s5">
+  <div class="h2rule"><span class="n">06</span><h2>入り口の分け方</h2><span class="line"></span></div>
+
+  <p>入り口は 3 つの意味で分けられます。</p>
+
+  <h4>公開範囲そのものを分ける（エンドポイントタイプ）</h4>
+  <div class="tw"><table>
+    <thead><tr><th>タイプ</th><th>到達経路</th><th>用途</th></tr></thead>
+    <tbody>
+      <tr><td>Regional</td><td>インターネットから直接</td><td>一般的な公開 API</td></tr>
+      <tr><td>Edge-optimized</td><td>CloudFront 経由で世界中から</td><td>グローバル配信</td></tr>
+      <tr><td>Private</td><td>VPC エンドポイント経由のみ</td><td>社内専用 API。インターネットから到達不能</td></tr>
+    </tbody>
+  </table></div>
+
+  <h4>ドメインで分ける</h4>
+  <p><code>order-api.example.com</code> と <code>member-api.example.com</code> のように、API ごとに別のカスタムドメインを割り当てます。</p>
+
+  <h4>1 つのドメインの下でパスで分ける</h4>
+  <p>実務で最もよく使われる形です。次の図がこれにあたります。</p>
+
+  <h3 id="s5-1">グループごとに分けて管理する</h3>
+
+  <figure>
+    <svg viewBox="0 0 680 462" role="img" aria-label="単一のカスタムドメインからベースパスごとに2つのAPIへ振り分け、それぞれが独立した設定を持つ構成">
+      <defs><marker id="ar4" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#7C8880" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+      <g class="f-gray"><rect x="260" y="30" width="160" height="44" rx="8"/>
+        <text class="d-th" x="340" y="52" text-anchor="middle" dominant-baseline="central">クライアント</text></g>
+      <line x1="340" y1="78" x2="340" y2="114" class="arr" marker-end="url(#ar4)"/>
+      <g class="f-green"><rect x="200" y="120" width="280" height="56" rx="8"/>
+        <text class="d-th" x="340" y="141" text-anchor="middle" dominant-baseline="central">カスタムドメイン</text>
+        <text class="d-ts" x="340" y="160" text-anchor="middle" dominant-baseline="central">api.example.com</text></g>
+      <path d="M340 180 L340 206 L180 206 L180 226" class="arr" marker-end="url(#ar4)"/>
+      <path d="M340 180 L340 206 L500 206 L500 226" class="arr" marker-end="url(#ar4)"/>
+      <g class="f-slate"><rect x="70" y="232" width="220" height="64" rx="8"/>
+        <text class="d-th" x="180" y="256" text-anchor="middle" dominant-baseline="central">注文API（○グループ）</text>
+        <text class="d-ts" x="180" y="276" text-anchor="middle" dominant-baseline="central">ベースパス /orders</text></g>
+      <g class="f-clay"><rect x="390" y="232" width="220" height="64" rx="8"/>
+        <text class="d-th" x="500" y="256" text-anchor="middle" dominant-baseline="central">会員API（×グループ）</text>
+        <text class="d-ts" x="500" y="276" text-anchor="middle" dominant-baseline="central">ベースパス /users</text></g>
+      <line x1="180" y1="300" x2="180" y2="322" class="arr" marker-end="url(#ar4)"/>
+      <line x1="500" y1="300" x2="500" y2="322" class="arr" marker-end="url(#ar4)"/>
+      <rect class="d-box" x="70" y="326" width="220" height="96" rx="8"/>
+      <text class="d-ts" x="180" y="352" text-anchor="middle" dominant-baseline="central">専用のロググループ</text>
+      <text class="d-ts" x="180" y="374" text-anchor="middle" dominant-baseline="central">専用のスロットリング</text>
+      <text class="d-ts" x="180" y="396" text-anchor="middle" dominant-baseline="central">専用のIAM権限・WAF</text>
+      <rect class="d-box" x="390" y="326" width="220" height="96" rx="8"/>
+      <text class="d-ts" x="500" y="352" text-anchor="middle" dominant-baseline="central">専用のロググループ</text>
+      <text class="d-ts" x="500" y="374" text-anchor="middle" dominant-baseline="central">専用のスロットリング</text>
+      <text class="d-ts" x="500" y="396" text-anchor="middle" dominant-baseline="central">専用のIAM権限・WAF</text>
+    </svg>
+    <figcaption>利用者から見れば窓口は 1 つ。内部では完全に独立した 2 つの API が動く。</figcaption>
+  </figure>
+
+  <pre><code>api.example.com/orders/*  →  注文API（○グループ）の prod ステージ
+api.example.com/users/*   →  会員API（×グループ）の prod ステージ</code></pre>
+
+  <h4>別 API に分けると何が分離されるか</h4>
+  <div class="tw"><table>
+    <thead><tr><th>分離されるもの</th><th>内容</th></tr></thead>
+    <tbody>
+      <tr><td>アクセスログ</td><td>ステージごとに出力先のロググループを指定できる</td></tr>
+      <tr><td>実行ログ</td><td><code>API-Gateway-Execution-Logs_{api-id}/{stage}</code> に自動で分かれる</td></tr>
+      <tr><td>メトリクス</td><td>CloudWatch の ApiName ディメンションで分かれる</td></tr>
+      <tr><td>スロットリング</td><td>ステージ単位。片方が詰まっても波及しない</td></tr>
+      <tr><td>WAF</td><td>ステージ単位で関連付け。片方だけ厳しくできる</td></tr>
+      <tr><td>リソースポリシー</td><td>片方だけ IP 制限、といった設定が可能</td></tr>
+      <tr><td>IAM 権限</td><td>API ID 単位の ARN でデプロイ権限を分けられる</td></tr>
+      <tr><td>デプロイ</td><td>片方の更新がもう片方に影響しない</td></tr>
+      <tr><td>コスト配分</td><td>API 単位でタグを付けられる</td></tr>
+      <tr><td>エンドポイントタイプ</td><td>片方は公開、片方は Private といった分離も可能</td></tr>
+    </tbody>
+  </table></div>
+
+  <div class="note stop">
+    <span class="lab">ドメインは分離の境界ではない</span>
+    <p>
+      上の一覧は<strong>「API とステージを分けたこと」によって生じています</strong>。
+      カスタムドメインは入り口の看板にすぎません。2 つのドメインを同じ API・同じステージに向ければ、
+      ログもスロットリングも権限も全部ひとまとめのままです。
+    </p>
+  </div>
+
+  <div class="tw"><table>
+    <caption>3 パターンでの整理</caption>
+    <thead><tr><th>構成</th><th>上の一覧は実現できるか</th></tr></thead>
+    <tbody>
+      <tr><td>1 ドメイン ＋ 2 API（ベースパス分け）</td><td class="yes">できる</td></tr>
+      <tr><td>2 ドメイン ＋ 2 API</td><td class="yes">できる（ドメイン固有の設定も分けられる）</td></tr>
+      <tr><td>2 ドメイン ＋ 1 API</td><td class="no">できない（ドメイン以外は全部共通）</td></tr>
+    </tbody>
+  </table></div>
+
+  <p>ドメインを分けて追加で得られるのは、<strong>TLS と DNS まわりだけ</strong>です。</p>
+  <ul>
+    <li>証明書の分離（片方だけワイルドカード、など）</li>
+    <li>相互 TLS（mTLS）の個別設定</li>
+    <li>最小 TLS バージョンの個別設定</li>
+    <li>Route 53 のフェイルオーバーや加重ルーティングをグループ単位で</li>
+    <li>対外 API と社内 API で名前空間ごと分ける</li>
+  </ul>
+
+  <h3 id="s5-2">ベースパスマッピングの設定手順</h3>
+
+  <div class="note warn">
+    <span class="lab">先に確認する 3 つ</span>
+    <p>
+      ① ドメインを所有していること（Route 53 のホストゾーンがあると楽）<br>
+      ② ACM の証明書。<strong>リージョンエンドポイントなら API と同じリージョン、エッジ最適化なら必ず us-east-1</strong><br>
+      ③ 各 API がステージにデプロイ済みであること。未デプロイの API は選択肢に出てきません
+    </p>
+  </div>
+
+  <ol class="steps">
+    <li><b>ACM で証明書を発行する</b>
+      <p>エンドポイントタイプに応じたリージョンで「証明書をリクエスト」→「パブリック証明書」。ドメイン名に <code>api.example.com</code> または <code>*.example.com</code> を入力し、DNS 検証を選びます。Route 53 なら「Route 53 でレコードを作成」ボタンで完了。「発行済み」になるまで数分待ちます。</p></li>
+    <li><b>カスタムドメイン名を作成する</b>
+      <p>API Gateway コンソール →「カスタムドメイン名」→「作成」。ドメイン名、エンドポイントタイプ、最小 TLS バージョン（1.2）、ACM 証明書を選択します。<strong>証明書がプルダウンに出ない場合はリージョン違い</strong>を疑ってください。</p></li>
+    <li><b>API マッピングを追加する</b>
+      <p>作成したドメインの「API マッピング」タブ →「API マッピングを設定」。API に「注文API」、ステージに「prod」、パスに <code>orders</code>（先頭スラッシュ不要）。続けてもう 1 行追加し「会員API / prod / users」を登録して保存します。REST API と HTTP API の混在も可能です。</p></li>
+    <li><b>DNS レコードを向ける</b>
+      <p>詳細画面の「API Gateway ドメイン名」（<code>d-xxxxx.execute-api...</code>）をコピー。Route 53 で「レコードを作成」→ 名前 <code>api</code>、タイプ A、エイリアスをオン →「API Gateway API へのエイリアス」。外部 DNS なら CNAME で指します。</p></li>
+    <li><b>動作を確認する</b>
+      <p><code>https://api.example.com/orders/...</code> にアクセスします。<strong>ベースパスはバックエンドへ渡す際に取り除かれます</strong>。<code>/orders/list</code> は注文 API 側のリソース <code>/list</code> に届くので、API 側に <code>/orders</code> を作る必要はありません。</p></li>
+    <li><b>既定のエンドポイントを無効化する</b>
+      <p>疎通確認が取れたら、各 API の「API 設定」で「デフォルトのエンドポイント」を無効化し、カスタムドメイン経由に限定します。</p></li>
+  </ol>
+
+  <div class="note warn">
+    <span class="lab">つまずきやすい点</span>
+    <p>
+      <strong>反映時間</strong>：リージョンエンドポイントは数分、エッジ最適化は CloudFront の作成を伴うため最大 40 分ほどかかります。<br>
+      <strong>リダイレクト</strong>：バックエンドが <code>Location: /list</code> のような相対パスを返すと、ベースパスが抜けた状態でクライアントに届きます。完全な URL を組み立てるか、ステージ変数でベースパスを渡します。<br>
+      <strong>スロットリングの総枠</strong>：上限はリージョンあたりアカウント単位（既定で 10,000 rps）で共有されます。API を分けただけでは総枠を奪い合うため、各ステージに明示的な上限を設定してください。
+    </p>
+  </div>
+</section>
+
+<!-- ============ 06 ============ -->
+<section id="s6">
+  <div class="h2rule"><span class="n">07</span><h2>現状と次の一手</h2><span class="line"></span></div>
+
+  <p>現状は「カスタムドメイン 2 つ、API 2 つ」で 1 対 1 に対応している構成です。</p>
+
+  <figure>
+    <svg viewBox="0 0 680 430" role="img" aria-label="2つのカスタムドメインと2つのAPIが1対1で対応し、各APIに分離設定を入れる構成">
+      <defs><marker id="ar5" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#7C8880" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+      <g class="f-green"><rect x="70" y="30" width="220" height="56" rx="8"/>
+        <text class="d-th" x="180" y="51" text-anchor="middle" dominant-baseline="central">api-a.example.com</text>
+        <text class="d-ts" x="180" y="70" text-anchor="middle" dominant-baseline="central">カスタムドメインA</text></g>
+      <g class="f-green"><rect x="390" y="30" width="220" height="56" rx="8"/>
+        <text class="d-th" x="500" y="51" text-anchor="middle" dominant-baseline="central">api-b.example.com</text>
+        <text class="d-ts" x="500" y="70" text-anchor="middle" dominant-baseline="central">カスタムドメインB</text></g>
+      <line x1="180" y1="90" x2="180" y2="116" class="arr" marker-end="url(#ar5)"/>
+      <line x1="500" y1="90" x2="500" y2="116" class="arr" marker-end="url(#ar5)"/>
+      <g class="f-slate"><rect x="70" y="122" width="220" height="64" rx="8"/>
+        <text class="d-th" x="180" y="146" text-anchor="middle" dominant-baseline="central">注文API（○グループ）</text>
+        <text class="d-ts" x="180" y="166" text-anchor="middle" dominant-baseline="central">prod ステージ</text></g>
+      <g class="f-clay"><rect x="390" y="122" width="220" height="64" rx="8"/>
+        <text class="d-th" x="500" y="146" text-anchor="middle" dominant-baseline="central">会員API（×グループ）</text>
+        <text class="d-ts" x="500" y="166" text-anchor="middle" dominant-baseline="central">prod ステージ</text></g>
+      <line x1="180" y1="190" x2="180" y2="214" class="arr" marker-end="url(#ar5)"/>
+      <line x1="500" y1="190" x2="500" y2="214" class="arr" marker-end="url(#ar5)"/>
+      <g class="dash"><rect x="70" y="220" width="220" height="146" rx="8"/></g>
+      <text class="d-ts" x="180" y="246" text-anchor="middle" dominant-baseline="central">アクセスログ出力先</text>
+      <text class="d-ts" x="180" y="270" text-anchor="middle" dominant-baseline="central">スロットリング</text>
+      <text class="d-ts" x="180" y="294" text-anchor="middle" dominant-baseline="central">WAF の関連付け</text>
+      <text class="d-ts" x="180" y="318" text-anchor="middle" dominant-baseline="central">コスト配分タグ</text>
+      <text class="d-ts" x="180" y="342" text-anchor="middle" dominant-baseline="central">IAM 権限の範囲</text>
+      <g class="dash"><rect x="390" y="220" width="220" height="146" rx="8"/></g>
+      <text class="d-ts" x="500" y="246" text-anchor="middle" dominant-baseline="central">アクセスログ出力先</text>
+      <text class="d-ts" x="500" y="270" text-anchor="middle" dominant-baseline="central">スロットリング</text>
+      <text class="d-ts" x="500" y="294" text-anchor="middle" dominant-baseline="central">WAF の関連付け</text>
+      <text class="d-ts" x="500" y="318" text-anchor="middle" dominant-baseline="central">コスト配分タグ</text>
+      <text class="d-ts" x="500" y="342" text-anchor="middle" dominant-baseline="central">IAM 権限の範囲</text>
+      <text class="d-ts" x="340" y="398" text-anchor="middle">破線＝ここに設定を入れると分離が完成する</text>
+    </svg>
+    <figcaption>上 2 段はすでに完成している。分離のための器は揃っており、残るのは 3 段目の設定だけ。</figcaption>
+  </figure>
+
+  <p><strong>API を分けたこと自体は、分離を可能にしただけで有効化はしていません。</strong>既定のままだと次の状態になっている可能性があります。</p>
+
+  <div class="tw"><table>
+    <thead><tr><th>項目</th><th>既定の状態</th><th>実質どうなるか</th></tr></thead>
+    <tbody>
+      <tr><td>アクセスログ</td><td>無効</td><td>どちらのログも存在せず、障害時に追えない</td></tr>
+      <tr><td>実行ログ</td><td>OFF</td><td>同上</td></tr>
+      <tr><td>スロットリング</td><td>未設定</td><td>アカウント全体の枠を 2 つで奪い合う。片方の暴走で両方落ちる</td></tr>
+      <tr><td>WAF</td><td>未関連付け</td><td>どちらも保護なし</td></tr>
+      <tr><td>コスト配分タグ</td><td>未設定</td><td>Cost Explorer で内訳が見えない</td></tr>
+      <tr><td>IAM 権限</td><td>広いポリシーのまま</td><td>チーム A が誤ってチーム B の API をデプロイできる</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>設定場所の一覧</h3>
+  <div class="tw"><table>
+    <thead><tr><th>分離したいもの</th><th>コンソールでの場所</th><th>設定内容</th></tr></thead>
+    <tbody>
+      <tr><td>アクセスログ</td><td>ステージ →「ログとトレース」→ 編集</td><td>カスタムアクセスログを有効化し、専用ロググループの ARN を指定</td></tr>
+      <tr><td>実行ログ</td><td>同上</td><td>ログレベルを ERROR または INFO に。出力先は API ID ごとに自動で分かれる</td></tr>
+      <tr><td>詳細メトリクス</td><td>同上</td><td>メソッド単位で見たい場合に有効化（追加課金あり）</td></tr>
+      <tr><td>X-Ray</td><td>同上</td><td>トレースを有効化</td></tr>
+      <tr><td>スロットリング</td><td>ステージ → ステージの詳細 → 編集</td><td>レートとバースト。メソッド単位の上書きも可能</td></tr>
+      <tr><td>WAF</td><td>ステージ →「ウェブ ACL」</td><td>グループ用の Web ACL を関連付け</td></tr>
+      <tr><td>リソースポリシー</td><td>API →「リソースポリシー」</td><td>IP 制限や VPC エンドポイント限定が必要な場合</td></tr>
+      <tr><td>コスト配分タグ</td><td>API →「タグ」タブ</td><td><code>Group=orders</code> のようなタグ</td></tr>
+      <tr><td>IAM 権限</td><td>IAM コンソール</td><td>リソースを <code>arn:aws:apigateway:{region}::/restapis/{API ID}/*</code> で限定</td></tr>
+    </tbody>
+  </table></div>
+
+  <div class="note warn">
+    <span class="lab">先に 1 回だけ必要な設定</span>
+    <p>実行ログを出すには、アカウント単位で CloudWatch Logs へのロール ARN を登録しておく必要があります。
+    API Gateway コンソールの「設定」→「CloudWatch ログのロール ARN」です。ここが空だとログ設定を保存できません。</p>
+  </div>
+
+  <h3>優先順位</h3>
+  <ol class="steps">
+    <li><b>アクセスログ</b><p>これが無いと何も分析できません。グループ専用のロググループを指定します。</p></li>
+    <li><b>スロットリング</b><p>一方の障害が他方へ波及するのを防ぎます。入れないと API を分けた意味が半減します。</p></li>
+    <li><b>コスト配分タグ</b><p>数秒で終わるわりに、後から「どちらがコストを食っているか」が見えるようになります。</p></li>
+    <li><b>IAM 権限の絞り込み</b><p>チームが分かれているなら優先度が上がります。</p></li>
+    <li><b>WAF</b><p>外部公開していて攻撃リスクがあるなら。REST API のみ対応です。</p></li>
+  </ol>
+
+  <h3>今すぐ確認できること</h3>
+  <ul class="check">
+    <li>各 API のステージ →「ログとトレース」で、カスタムアクセスログが有効かつロググループが別々になっているか</li>
+    <li>各 API のステージ詳細で、スロットリングのレートが空欄になっていないか</li>
+    <li>CloudWatch のロググループに <code>API-Gateway-Execution-Logs_{api-id}/prod</code> が 2 つ分あるか</li>
+  </ul>
+
+  <div class="note">
+    <span class="lab">もし API を分割する必要が出たら</span>
+    <p>
+      ドメインが既に分かれている場合、<strong>URL を変えずに内部だけ分割できます</strong>。
+      既存 API のステージから OpenAPI 3 を「API Gateway 拡張機能を含めて」エクスポートし、
+      paths をグループごとに分けて新 API としてインポート。Lambda のリソースベースポリシー、
+      使用量プランの紐付け、リソースポリシーを手動で補ってからデプロイし、
+      最後にドメインの API マッピングを張り替えます。旧 API を残しておけば、
+      切り戻しはマッピングを戻すだけで数十秒で済みます。
+    </p>
+  </div>
+</section>
+
+<footer>
+  AWS ネットワークと API Gateway の構成メモ — 内部リファレンス<br>
+  料金・上限値・コンソールの画面構成は変わることがあるため、最終判断は公式ドキュメントで確認してください。
+</footer>
+
+</main>
+
+<script>
+(function(){
+  var links = Array.prototype.slice.call(document.querySelectorAll('.directory a[href^="#"]'));
+  var map = {};
+  links.forEach(function(a){
+    var el = document.querySelector(a.getAttribute('href'));
+    if(el){ map[el.id] = a; }
+  });
+  var targets = Object.keys(map).map(function(id){ return document.getElementById(id); });
+  if(!('IntersectionObserver' in window) || !targets.length) return;
+
+  var visible = {};
+  var obs = new IntersectionObserver(function(entries){
+    entries.forEach(function(e){ visible[e.target.id] = e.isIntersecting; });
+    var current = null;
+    targets.forEach(function(t){ if(visible[t.id] && !current) current = t.id; });
+    if(!current) return;
+    links.forEach(function(a){ a.classList.remove('on'); });
+    map[current].classList.add('on');
+  }, { rootMargin: '-10% 0px -70% 0px', threshold: 0 });
+
+  targets.forEach(function(t){ obs.observe(t); });
+})();
+</script>
+</body>
+</html>

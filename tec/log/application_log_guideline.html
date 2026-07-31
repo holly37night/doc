@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>アプリケーションログ管理ガイドライン</title>
+  <style>
+    :root {
+      --bg: #f4f7fb;
+      --surface: #ffffff;
+      --text: #1f2937;
+      --muted: #667085;
+      --border: #d9e2ec;
+      --primary: #1d4ed8;
+      --primary-soft: #eaf2ff;
+      --info: #0f766e;
+      --warn: #b45309;
+      --error: #b91c1c;
+      --critical: #7f1d1d;
+      --debug: #6d28d9;
+      --trace: #475569;
+      --shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans JP",
+        "Hiragino Kaku Gothic ProN", "Yu Gothic", Meiryo, sans-serif;
+      color: var(--text);
+      background: var(--bg);
+      line-height: 1.75;
+    }
+
+    header {
+      color: #fff;
+      background: linear-gradient(135deg, #1d4ed8, #0f3f9e);
+      padding: 56px 24px 48px;
+    }
+
+    header .inner,
+    main,
+    footer .inner {
+      width: min(1180px, calc(100% - 32px));
+      margin: 0 auto;
+    }
+
+    h1 {
+      margin: 0 0 12px;
+      font-size: clamp(28px, 4vw, 44px);
+      line-height: 1.25;
+    }
+
+    header p {
+      max-width: 820px;
+      margin: 0;
+      opacity: 0.92;
+      font-size: 17px;
+    }
+
+    main {
+      padding: 32px 0 64px;
+    }
+
+    nav {
+      position: sticky;
+      top: 12px;
+      z-index: 10;
+      margin-bottom: 28px;
+      padding: 14px 18px;
+      background: rgba(255, 255, 255, 0.96);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(8px);
+    }
+
+    nav a {
+      display: inline-block;
+      margin: 4px 14px 4px 0;
+      color: var(--primary);
+      font-weight: 700;
+      text-decoration: none;
+      font-size: 14px;
+    }
+
+    section {
+      margin-bottom: 28px;
+      padding: 28px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      box-shadow: var(--shadow);
+    }
+
+    h2 {
+      margin: 0 0 18px;
+      padding-bottom: 10px;
+      border-bottom: 3px solid var(--primary-soft);
+      font-size: 25px;
+      line-height: 1.4;
+    }
+
+    h3 {
+      margin: 24px 0 10px;
+      font-size: 19px;
+    }
+
+    p {
+      margin: 8px 0;
+    }
+
+    .lead {
+      font-size: 17px;
+    }
+
+    .note {
+      margin-top: 16px;
+      padding: 14px 16px;
+      background: #fff8e6;
+      border-left: 5px solid #f59e0b;
+      border-radius: 8px;
+    }
+
+    .rule {
+      margin-top: 16px;
+      padding: 16px;
+      background: var(--primary-soft);
+      border-left: 5px solid var(--primary);
+      border-radius: 8px;
+      font-weight: 700;
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+      margin-top: 14px;
+    }
+
+    table {
+      width: 100%;
+      min-width: 900px;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+
+    th, td {
+      padding: 13px 14px;
+      border: 1px solid var(--border);
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      color: #fff;
+      background: #334155;
+      white-space: nowrap;
+    }
+
+    tbody tr:nth-child(even) {
+      background: #f8fafc;
+    }
+
+    code {
+      padding: 2px 6px;
+      border-radius: 5px;
+      background: #eef2f7;
+      font-family: Consolas, "Courier New", monospace;
+      font-size: 0.95em;
+    }
+
+    pre {
+      overflow-x: auto;
+      margin: 14px 0 0;
+      padding: 18px;
+      color: #e5e7eb;
+      background: #111827;
+      border-radius: 12px;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    pre code {
+      padding: 0;
+      color: inherit;
+      background: transparent;
+    }
+
+    .level-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+      gap: 18px;
+      margin-top: 18px;
+    }
+
+    .level-card {
+      padding: 20px;
+      border: 1px solid var(--border);
+      border-top: 6px solid var(--trace);
+      border-radius: 14px;
+      background: #fff;
+    }
+
+    .level-card h3 {
+      margin-top: 0;
+    }
+
+    .level-card.trace { border-top-color: var(--trace); }
+    .level-card.debug { border-top-color: var(--debug); }
+    .level-card.info { border-top-color: var(--info); }
+    .level-card.warn { border-top-color: var(--warn); }
+    .level-card.error { border-top-color: var(--error); }
+    .level-card.critical { border-top-color: var(--critical); }
+
+    .badge {
+      display: inline-block;
+      margin-left: 8px;
+      padding: 2px 8px;
+      border-radius: 999px;
+      color: #fff;
+      background: #64748b;
+      font-size: 12px;
+      vertical-align: middle;
+    }
+
+    .must {
+      background: #dc2626;
+    }
+
+    .recommend {
+      background: #2563eb;
+    }
+
+    ul {
+      margin: 8px 0 0;
+      padding-left: 22px;
+    }
+
+    .decision {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      gap: 12px;
+      align-items: center;
+      margin-top: 14px;
+      padding: 14px 16px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+    }
+
+    .arrow {
+      color: var(--primary);
+      font-size: 24px;
+      font-weight: 700;
+    }
+
+    footer {
+      padding: 24px 0;
+      color: #cbd5e1;
+      background: #0f172a;
+      font-size: 13px;
+    }
+
+    @media (max-width: 720px) {
+      header {
+        padding: 38px 18px 34px;
+      }
+
+      section {
+        padding: 20px;
+      }
+
+      nav {
+        position: static;
+      }
+
+      .decision {
+        grid-template-columns: 1fr;
+      }
+
+      .arrow {
+        transform: rotate(90deg);
+        text-align: center;
+      }
+    }
+
+    @media print {
+      body {
+        background: #fff;
+      }
+
+      nav {
+        display: none;
+      }
+
+      section {
+        break-inside: avoid;
+        box-shadow: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="inner">
+      <h1>アプリケーションログ管理ガイドライン</h1>
+      <p>
+        Webアプリケーション、API、バッチ、AWS Lambdaなどで共通利用できる、
+        ログレベル別の記録基準と構造化ログの設計方針をまとめたガイドラインです。
+      </p>
+    </div>
+  </header>
+
+  <main>
+    <nav aria-label="ページ内メニュー">
+      <a href="#overview">1. 基本方針</a>
+      <a href="#levels">2. レベル一覧</a>
+      <a href="#details">3. レベル別詳細</a>
+      <a href="#common">4. 共通項目</a>
+      <a href="#json">5. JSON例</a>
+      <a href="#prohibited">6. 禁止情報</a>
+      <a href="#decision">7. 判断基準</a>
+    </nav>
+
+    <section id="overview">
+      <h2>1. 基本方針</h2>
+      <p class="lead">
+        ログは、障害調査だけでなく、監視、監査、性能分析、業務処理の追跡に使用します。
+        そのため、単なる文章ではなく、検索しやすい構造化ログとして出力することを推奨します。
+      </p>
+      <div class="rule">
+        ログレベルは「例外が発生したか」ではなく、「利用者や業務処理にどの程度の影響があったか」で判断します。
+      </div>
+      <div class="note">
+        パスワード、アクセストークン、APIキー、カード情報などの機密情報は、
+        ログレベルに関係なく出力してはいけません。
+      </div>
+    </section>
+
+    <section id="levels">
+      <h2>2. ログレベル別一覧</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>ログレベル</th>
+              <th>用途</th>
+              <th>入れなければいけないもの</th>
+              <th>入れたほうがよいもの</th>
+              <th>代表例</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>TRACE</code></td>
+              <td>処理を非常に細かく追跡する</td>
+              <td>原則なし。本番では通常無効</td>
+              <td>メソッド開始・終了、ループ、内部状態、詳細な変数</td>
+              <td>検索処理の各ステップ</td>
+            </tr>
+            <tr>
+              <td><code>DEBUG</code></td>
+              <td>開発・調査時の詳細確認</td>
+              <td>処理名、対象ID、主要な分岐結果</td>
+              <td>入力値、検索条件、取得件数、中間結果、API通信概要</td>
+              <td>予約検索条件の生成</td>
+            </tr>
+            <tr>
+              <td><code>INFO</code></td>
+              <td>正常な業務・システム処理の記録</td>
+              <td>処理名、処理結果、対象ID、完了状態</td>
+              <td>ユーザーID、処理件数、処理時間、変更前後の状態</td>
+              <td>予約登録完了、バッチ完了</td>
+            </tr>
+            <tr>
+              <td><code>WARN</code></td>
+              <td>継続可能だが注意が必要</td>
+              <td>発生事象、影響、対象ID、継続・代替処理の有無</td>
+              <td>リトライ回数、閾値、タイムアウト、復旧内容</td>
+              <td>APIタイムアウト後のリトライ</td>
+            </tr>
+            <tr>
+              <td><code>ERROR</code></td>
+              <td>要求された処理が失敗</td>
+              <td>失敗処理、エラー内容、対象ID、例外、影響範囲、追跡ID</td>
+              <td>スタックトレース、HTTP/DBエラー、ロールバック結果</td>
+              <td>DB更新失敗、予約登録失敗</td>
+            </tr>
+            <tr>
+              <td><code>FATAL / CRITICAL</code></td>
+              <td>サービス継続が困難</td>
+              <td>原因、発生箇所、影響範囲、サービス状態、例外</td>
+              <td>停止対象、復旧手順、通知先、フェイルオーバー結果</td>
+              <td>DB接続不可で起動失敗</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="details">
+      <h2>3. ログレベル別の詳細</h2>
+
+      <div class="level-grid">
+        <article class="level-card trace">
+          <h3>TRACE</h3>
+          <p>処理内部を1ステップずつ追跡するためのログです。</p>
+          <p><span class="badge recommend">推奨</span></p>
+          <ul>
+            <li>メソッド・関数の開始と終了</li>
+            <li>条件分岐の判定結果</li>
+            <li>ループ内の各処理</li>
+            <li>詳細な中間変数</li>
+            <li>内部状態の遷移</li>
+          </ul>
+          <p><strong>運用:</strong> 出力量が多いため、本番環境では原則無効にします。</p>
+        </article>
+
+        <article class="level-card debug">
+          <h3>DEBUG</h3>
+          <p>開発中や障害調査時に、処理内容を確認するためのログです。</p>
+          <p><span class="badge must">必須</span></p>
+          <ul>
+            <li>処理名</li>
+            <li>対象を識別するID</li>
+            <li>主要な分岐・処理結果</li>
+          </ul>
+          <p><span class="badge recommend">推奨</span></p>
+          <ul>
+            <li>入力パラメータ</li>
+            <li>検索条件、取得件数</li>
+            <li>外部APIの要求・応答概要</li>
+            <li>キャッシュのヒット・ミス</li>
+            <li>SQL実行時間</li>
+          </ul>
+        </article>
+
+        <article class="level-card info">
+          <h3>INFO</h3>
+          <p>正常に完了した業務処理やシステム処理を記録します。</p>
+          <p><span class="badge must">必須</span></p>
+          <ul>
+            <li>処理名</li>
+            <li>処理結果</li>
+            <li>対象ID</li>
+            <li>成功・完了状態</li>
+          </ul>
+          <p><span class="badge recommend">推奨</span></p>
+          <ul>
+            <li>リクエストID、ユーザーID</li>
+            <li>予約番号などの業務ID</li>
+            <li>処理件数、処理時間</li>
+            <li>ステータス変更前後</li>
+            <li>外部サービス名、実行元</li>
+          </ul>
+        </article>
+
+        <article class="level-card warn">
+          <h3>WARN</h3>
+          <p>想定外の状態ですが、処理を継続できる場合に使用します。</p>
+          <p><span class="badge must">必須</span></p>
+          <ul>
+            <li>何が起きたか</li>
+            <li>対象ID</li>
+            <li>影響内容</li>
+            <li>処理継続・代替処理の有無</li>
+          </ul>
+          <p><span class="badge recommend">推奨</span></p>
+          <ul>
+            <li>リトライ回数と上限</li>
+            <li>タイムアウト時間、閾値</li>
+            <li>外部APIのステータス</li>
+            <li>デフォルト値や復旧内容</li>
+          </ul>
+        </article>
+
+        <article class="level-card error">
+          <h3>ERROR</h3>
+          <p>要求された処理が失敗し、正常な結果を返せない場合に使用します。</p>
+          <p><span class="badge must">必須</span></p>
+          <ul>
+            <li>失敗した処理</li>
+            <li>エラー内容、例外名</li>
+            <li>対象ID、影響範囲</li>
+            <li>リクエストIDまたはトレースID</li>
+          </ul>
+          <p><span class="badge recommend">推奨</span></p>
+          <ul>
+            <li>スタックトレース</li>
+            <li>HTTP・DBエラーコード</li>
+            <li>リトライ可否</li>
+            <li>ロールバック結果</li>
+            <li>エラー分類、対応方法</li>
+          </ul>
+        </article>
+
+        <article class="level-card critical">
+          <h3>FATAL / CRITICAL</h3>
+          <p>アプリケーションやサービスを継続できない重大障害に使用します。</p>
+          <p><span class="badge must">必須</span></p>
+          <ul>
+            <li>継続不能となったサービス・処理</li>
+            <li>原因、発生箇所</li>
+            <li>影響範囲、サービス状態</li>
+            <li>例外情報</li>
+          </ul>
+          <p><span class="badge recommend">推奨</span></p>
+          <ul>
+            <li>停止したコンポーネント</li>
+            <li>再起動・復旧方法</li>
+            <li>通知先</li>
+            <li>フェイルオーバー結果</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <section id="common">
+      <h2>4. すべてのログに共通して入れる項目</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>項目</th>
+              <th>必須度</th>
+              <th>内容</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td><code>timestamp</code></td><td>必須</td><td>ログ発生日時。タイムゾーンを含める</td></tr>
+            <tr><td><code>level</code></td><td>必須</td><td>TRACE、DEBUG、INFO、WARN、ERRORなど</td></tr>
+            <tr><td><code>service</code></td><td>必須</td><td>サービス名・アプリケーション名</td></tr>
+            <tr><td><code>environment</code></td><td>必須</td><td>production、staging、development</td></tr>
+            <tr><td><code>message</code></td><td>必須</td><td>何が起きたかを簡潔に記述</td></tr>
+            <tr><td><code>requestId</code></td><td>必須</td><td>1リクエストを追跡するID</td></tr>
+            <tr><td><code>traceId</code></td><td>推奨</td><td>複数サービス間を追跡するID</td></tr>
+            <tr><td><code>userId</code></td><td>推奨</td><td>実行ユーザー。内部IDや匿名化IDを利用</td></tr>
+            <tr><td><code>businessId</code></td><td>推奨</td><td>予約番号、注文番号、会話IDなど</td></tr>
+            <tr><td><code>component</code></td><td>推奨</td><td>Controller、Service、Repositoryなど</td></tr>
+            <tr><td><code>action</code></td><td>推奨</td><td>実行した処理名</td></tr>
+            <tr><td><code>result</code></td><td>推奨</td><td>success、failure、partialなど</td></tr>
+            <tr><td><code>durationMs</code></td><td>推奨</td><td>処理時間</td></tr>
+            <tr><td><code>errorType</code></td><td>ERROR時必須</td><td>例外・エラーの分類</td></tr>
+            <tr><td><code>errorCode</code></td><td>ERROR時推奨</td><td>システム独自のエラーコード</td></tr>
+            <tr><td><code>stackTrace</code></td><td>ERROR時推奨</td><td>例外発生箇所</td></tr>
+            <tr><td><code>host</code></td><td>推奨</td><td>EC2、ECSタスク、コンテナなどの識別子</td></tr>
+            <tr><td><code>version</code></td><td>推奨</td><td>アプリケーションのバージョン</td></tr>
+            <tr><td><code>clientIp</code></td><td>条件付き</td><td>必要性と個人情報管理を考慮して記録</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="json">
+      <h2>5. 推奨するJSON形式</h2>
+      <p>
+        CloudWatch Logs、Datadog、Splunk、OpenSearchなどで検索・集計しやすくするため、
+        JSON形式の構造化ログを推奨します。
+      </p>
+
+      <h3>INFOログの例</h3>
+      <pre><code>{
+  "timestamp": "2026-07-31T16:30:00.123+09:00",
+  "level": "INFO",
+  "environment": "production",
+  "service": "reservation-api",
+  "version": "1.5.2",
+  "component": "ReservationService",
+  "action": "createReservation",
+  "message": "Reservation created",
+  "requestId": "req-abc123",
+  "traceId": "trace-xyz789",
+  "userId": "456",
+  "reservationId": "RSV000123",
+  "hotelId": "001",
+  "result": "success",
+  "durationMs": 325
+}</code></pre>
+
+      <h3>ERRORログの例</h3>
+      <pre><code>{
+  "timestamp": "2026-07-31T16:30:00.123+09:00",
+  "level": "ERROR",
+  "environment": "production",
+  "service": "reservation-api",
+  "component": "ReservationService",
+  "action": "createReservation",
+  "message": "Reservation creation failed",
+  "requestId": "req-abc123",
+  "traceId": "trace-xyz789",
+  "reservationId": "RSV000123",
+  "errorType": "DatabaseException",
+  "errorCode": "DB-001",
+  "retryable": false,
+  "rollback": "success",
+  "stackTrace": "DatabaseException at ReservationRepository.java:125"
+}</code></pre>
+    </section>
+
+    <section id="prohibited">
+      <h2>6. ログに出してはいけない情報</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>対象</th>
+              <th>対応</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>パスワード</td><td>絶対に出力しない</td></tr>
+            <tr><td>アクセストークン</td><td>出力しない</td></tr>
+            <tr><td>APIキー・シークレットキー</td><td>出力しない</td></tr>
+            <tr><td>セッションID・Cookie</td><td>原則出力しない。必要な場合はハッシュ化・部分化</td></tr>
+            <tr><td>クレジットカード番号・セキュリティコード</td><td>絶対に出力しない</td></tr>
+            <tr><td>マイナンバー・身分証番号</td><td>出力しない</td></tr>
+            <tr><td>氏名・住所・電話番号・メールアドレス</td><td>必要最小限とし、原則マスキング</td></tr>
+            <tr><td>リクエストボディ全体</td><td>認証情報・個人情報を除外し、必要項目だけ記録</td></tr>
+            <tr><td>外部APIレスポンス全体</td><td>必要なステータスや識別子だけ記録</td></tr>
+            <tr><td>SQLのバインド値</td><td>個人情報や機密情報を含む可能性があるため原則制限</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>マスキング例</h3>
+      <pre><code>email=s***a@example.com
+phone=090-****-1234
+cardNumber=************1234</code></pre>
+    </section>
+
+    <section id="decision">
+      <h2>7. ログレベルの判断基準</h2>
+
+      <div class="decision">
+        <div><strong>正常に完了した</strong></div>
+        <div class="arrow">→</div>
+        <div><code>INFO</code></div>
+      </div>
+
+      <div class="decision">
+        <div><strong>開発・調査用の詳細情報</strong></div>
+        <div class="arrow">→</div>
+        <div><code>DEBUG</code> または <code>TRACE</code></div>
+      </div>
+
+      <div class="decision">
+        <div><strong>想定外だが処理は継続できる</strong></div>
+        <div class="arrow">→</div>
+        <div><code>WARN</code></div>
+      </div>
+
+      <div class="decision">
+        <div><strong>要求された処理が完了できなかった</strong></div>
+        <div class="arrow">→</div>
+        <div><code>ERROR</code></div>
+      </div>
+
+      <div class="decision">
+        <div><strong>サービスやシステムを継続できない</strong></div>
+        <div class="arrow">→</div>
+        <div><code>FATAL / CRITICAL</code></div>
+      </div>
+
+      <div class="note">
+        ユーザーの入力ミスや、存在しない予約番号の指定など、
+        仕様上想定される事象は必ずしもERRORではありません。
+        業務上の影響に応じてINFOまたはWARNを使用します。
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="inner">
+      アプリケーションログ管理ガイドライン
+    </div>
+  </footer>
+</body>
+</html>

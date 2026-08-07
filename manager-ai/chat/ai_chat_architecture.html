@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>東横AI（支配人AI） AIチャット機能 構成・処理フロー解説</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.9.1/mermaid.min.js"></script>
+<style>
+  :root{
+    --navy:#1E3A8A; --blue:#2563EB; --lightblue:#EFF6FF; --ink:#0f172a;
+    --muted:#475569; --border:#e2e8f0; --card:#ffffff; --bg:#f8fafc;
+    --accent:#0891b2; --warn:#b45309; --warnbg:#fffbeb; --ok:#047857;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; font-family:"Segoe UI","Hiragino Kaku Gothic ProN","Yu Gothic UI",Meiryo,sans-serif;
+    color:var(--ink); background:var(--bg); line-height:1.75; font-size:15px;
+  }
+  header{
+    background:linear-gradient(135deg,var(--navy),var(--blue));
+    color:#fff; padding:44px 32px 34px;
+  }
+  header .wrap{max-width:1080px;margin:0 auto;}
+  header h1{margin:0 0 8px; font-size:27px; letter-spacing:.5px;}
+  header p{margin:2px 0; opacity:.92; font-size:14px;}
+  header .tag{
+    display:inline-block; margin-top:14px; background:rgba(255,255,255,.16);
+    border:1px solid rgba(255,255,255,.3); border-radius:999px; padding:4px 14px; font-size:12.5px;
+  }
+  main{max-width:1080px; margin:0 auto; padding:12px 24px 80px;}
+  nav.toc{
+    background:var(--card); border:1px solid var(--border); border-radius:14px;
+    padding:20px 26px; margin:26px 0; box-shadow:0 1px 3px rgba(0,0,0,.04);
+  }
+  nav.toc h2{margin:0 0 10px; font-size:15px; color:var(--navy);}
+  nav.toc ol{margin:0; padding-left:22px; columns:2; column-gap:36px;}
+  nav.toc a{color:var(--blue); text-decoration:none; font-size:13.5px;}
+  nav.toc a:hover{text-decoration:underline;}
+  section{
+    background:var(--card); border:1px solid var(--border); border-radius:14px;
+    padding:26px 30px; margin:22px 0; box-shadow:0 1px 3px rgba(0,0,0,.04);
+  }
+  h2.sec{
+    font-size:20px; color:var(--navy); margin:0 0 6px;
+    padding-bottom:10px; border-bottom:2px solid var(--lightblue);
+  }
+  h2.sec .n{
+    display:inline-block; background:var(--navy); color:#fff; border-radius:8px;
+    width:30px; height:30px; text-align:center; line-height:30px; font-size:15px; margin-right:10px;
+  }
+  h3{font-size:16px; color:var(--blue); margin:24px 0 8px;}
+  p{margin:8px 0;}
+  .lead{color:var(--muted); font-size:14px; margin-top:10px;}
+  .diagram{
+    background:#fbfdff; border:1px solid var(--border); border-radius:12px;
+    padding:16px; margin:16px 0; overflow-x:auto; text-align:center;
+  }
+  .mermaid{ font-size:14px; }
+  table{width:100%; border-collapse:collapse; margin:16px 0; font-size:13.5px;}
+  th,td{border:1px solid var(--border); padding:8px 11px; text-align:left; vertical-align:top;}
+  th{background:var(--navy); color:#fff; font-weight:600;}
+  tr:nth-child(even) td{background:#f9fbff;}
+  code{
+    background:#eef2ff; color:#3730a3; padding:1.5px 6px; border-radius:5px;
+    font-family:"Consolas","SF Mono",monospace; font-size:12.5px;
+  }
+  .callout{
+    border-left:4px solid var(--accent); background:#ecfeff; padding:12px 16px;
+    border-radius:0 10px 10px 0; margin:16px 0; font-size:13.5px;
+  }
+  .callout.warn{border-left-color:var(--warn); background:var(--warnbg);}
+  .callout.warn b{color:var(--warn);}
+  .callout b{color:var(--accent);}
+  .pill{display:inline-block; padding:2px 9px; border-radius:6px; font-size:12px; font-weight:600;}
+  .pill.py{background:#dbeafe;color:#1e40af;} .pill.flu{background:#cffafe;color:#0e7490;}
+  .pill.db{background:#dcfce7;color:#166534;} .pill.ext{background:#fef3c7;color:#92400e;}
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:16px;}
+  @media(max-width:820px){.grid2{grid-template-columns:1fr;} nav.toc ol{columns:1;}}
+  .filepath{color:var(--muted); font-size:12px; font-family:"Consolas",monospace;}
+  footer{max-width:1080px; margin:0 auto; padding:0 24px 50px; color:var(--muted); font-size:12.5px;}
+  .legend{font-size:12px;color:var(--muted);margin-top:6px;}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <h1>東横AI（支配人AI） — AIチャット機能 構成・処理フロー解説</h1>
+    <p>東横インホテルの支配人業務を代替する社内AIアシスタント</p>
+    <p>対象リポジトリ: <code style="background:rgba(255,255,255,.15);color:#fff">manager-ai-1</code>／バックエンド実装（Python）＋設計書（docs/design.md）に基づく</p>
+    <span class="tag">現状のAIチャット構成・RAG登録・AI応答の処理フローをコードベースで図解</span>
+  </div>
+</header>
+
+<main>
+  <nav class="toc">
+    <h2>目次</h2>
+    <ol>
+      <li><a href="#s1">システム全体像と技術スタック</a></li>
+      <li><a href="#s2">全体アーキテクチャ構成図</a></li>
+      <li><a href="#s3">AIチャットのレイヤー構造</a></li>
+      <li><a href="#s4">AI応答の全体シーケンス（1問い合わせの流れ）</a></li>
+      <li><a href="#s5">オーケストレーターの4ステップ処理</a></li>
+      <li><a href="#s6">RAG検索パイプライン（回答生成側）</a></li>
+      <li><a href="#s7">RAG登録フロー（マニュアル取り込み側）</a></li>
+      <li><a href="#s8">システムプロンプトの動的組み立て</a></li>
+      <li><a href="#s9">データモデルとストレージ対応</a></li>
+      <li><a href="#s10">設計と現行実装の差分メモ</a></li>
+    </ol>
+  </nav>
+
+  <!-- 1 -->
+  <section id="s1">
+    <h2 class="sec"><span class="n">1</span>システム全体像と技術スタック</h2>
+    <p class="lead">
+      「支配人AI」は、東横インの支配人が日々参照する社内マニュアル・業務手順・各種システム操作を、
+      自然言語チャットで問い合わせできるようにする RAG（検索拡張生成）型のアシスタントです。
+      Docker 上で複数コンテナが協調して動作し、フロントエンドは Flutter、バックエンドは Python（FastAPI）で構成されています。
+    </p>
+
+    <h3>主要コンポーネントと役割</h3>
+    <table>
+      <thead>
+        <tr><th>層</th><th>コンポーネント</th><th>技術 / ポート</th><th>役割</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>フロント</td><td>Flutter Client</td><td><span class="pill flu">Flutter</span> :3000</td><td>Web/iOS/Android 共通UI。チャット画面・音声入出力・ステップ表示・クイックリプライ</td></tr>
+        <tr><td>API</td><td>Python API</td><td><span class="pill py">FastAPI</span> :8086</td><td>認証連携・会話受付・RAG検索・回答生成・履歴/評価/添削の保存。AIチャットの中核</td></tr>
+        <tr><td>管理</td><td>Laravel Admin</td><td><span class="pill ext">PHP 8.4</span> :8088</td><td>ダッシュボード・会話履歴・プロンプト設定・用語/辞書管理・添削登録</td></tr>
+        <tr><td>ベクトルDB</td><td>Qdrant</td><td><span class="pill db">Qdrant</span> :6333</td><td>マニュアルチャンクのベクトル（埋め込み）検索。payload に tags / section_text を保持</td></tr>
+        <tr><td>会話DB</td><td>DynamoDB</td><td><span class="pill db">DynamoDB</span></td><td>会話履歴・会話評価・誤り指摘の保存（正本）</td></tr>
+        <tr><td>設定DB</td><td>PostgreSQL</td><td><span class="pill db">PostgreSQL 16</span></td><td>システムプロンプト・メッセージ評価・添削・用語・辞書。backend と admin が共用</td></tr>
+        <tr><td>DBハブ</td><td>DBHub</td><td><span class="pill ext">MCP HTTP</span> :18080</td><td>外部 MySQL/PostgreSQL を読み取り専用で公開（DB参照エージェント用）</td></tr>
+        <tr><td>LLM</td><td>LLM Provider Layer</td><td><span class="pill ext">Gemini / OpenAI / Claude</span></td><td>既定 <code>gemini-2.5-flash</code>。抽象化層で切替可能</td></tr>
+        <tr><td>埋め込み</td><td>Embedding Provider Layer</td><td><span class="pill ext">Gemini / OpenAI</span></td><td>既定 <code>gemini-embedding-2</code>（768次元）。<code>text-embedding-3-small</code> に切替可能</td></tr>
+        <tr><td>認証</td><td>Entra ID SSO</td><td><span class="pill ext">Office 365</span></td><td>Microsoft Entra ID を利用した SSO 認証</td></tr>
+      </tbody>
+    </table>
+    <div class="callout">
+      <b>ポイント：</b> AIチャットは Python API（FastAPI）に集約されています。フロントは「問い合わせを送り、返ってきた
+      <code>steps</code> / <code>source_manuals</code> / <code>quick_replies</code> / <code>pictures</code> を描画するだけ」という薄い構成で、
+      知識検索・回答生成のロジックはすべてバックエンド側に存在します。
+    </div>
+  </section>
+
+  <!-- 2 -->
+  <section id="s2">
+    <h2 class="sec"><span class="n">2</span>全体アーキテクチャ構成図</h2>
+    <p class="lead">各コンテナ・外部サービスの接続関係。AIチャットは太線の経路（Flutter → Python API → 各データストア／LLM）を通ります。</p>
+    <div class="diagram">
+      <div class="mermaid">
+flowchart TB
+    subgraph Client["クライアント層"]
+      FL["Flutter Client<br/>(Web / iOS / Android)<br/>:3000"]
+    end
+    subgraph AdminL["管理層"]
+      AD["Laravel Admin<br/>:8088"]
+    end
+    subgraph Backend["バックエンド層 — Python FastAPI :8086"]
+      API["API Routes<br/>/api/conversations · /api/manuals"]
+      CONV["ConversationService<br/>(A2A ルーティング)"]
+      ORC["ChatOrchestrator<br/>意図→状態→ツール→生成"]
+      RAG["RagService<br/>検索パイプライン"]
+      LLM["LlmService<br/>プロバイダ抽象化"]
+      ING["ManualIngestionService<br/>マニュアル取込"]
+      EMB["EmbeddingService"]
+    end
+    subgraph Stores["データストア層"]
+      QD[("Qdrant<br/>ベクトル検索")]
+      DY[("DynamoDB<br/>会話履歴")]
+      PG[("PostgreSQL<br/>プロンプト/評価/用語")]
+    end
+    subgraph Ext["外部サービス"]
+      GEM["LLM API<br/>Gemini / OpenAI / Claude"]
+      DBH["DBHub<br/>(外部DB 読取専用)"]
+      ENTRA["Entra ID SSO"]
+    end
+
+    FL -->|"POST /messages<br/>(REST / SSE)"| API
+    FL -.->|認証| ENTRA
+    API --> CONV --> ORC
+    ORC --> RAG
+    ORC --> LLM
+    RAG --> QD
+    RAG --> EMB --> GEM
+    LLM --> GEM
+    CONV --> DY
+    LLM --> PG
+    AD -->|統計/会話取得| API
+    AD -->|評価/添削 直接書込| PG
+    API --> ING --> QD
+    ING --> EMB
+    ORC -.->|DB参照| DBH
+
+    classDef be fill:#dbeafe,stroke:#2563EB,color:#1e3a8a;
+    classDef st fill:#dcfce7,stroke:#16a34a,color:#14532d;
+    classDef ex fill:#fef3c7,stroke:#d97706,color:#92400e;
+    class API,CONV,ORC,RAG,LLM,ING,EMB be;
+    class QD,DY,PG st;
+    class GEM,DBH,ENTRA ex;
+      </div>
+      <div class="legend">青＝Python API 内部サービス／緑＝データストア／黄＝外部サービス</div>
+    </div>
+  </section>
+
+  <!-- 3 -->
+  <section id="s3">
+    <h2 class="sec"><span class="n">3</span>AIチャットのレイヤー構造</h2>
+    <p class="lead">
+      1つの問い合わせは、API受付 → 会話サービス → A2Aエージェント → オーケストレーター → RAG/LLM という
+      複数の層を通ります。特徴的なのは <b>A2A（Agent-to-Agent）プロトコル</b>を内部に採用している点で、
+      現状は同一プロセス内（インプロセス）で直接呼び出しつつ、将来的に各エージェントを別サービス（HTTP）へ分離できる設計になっています。
+    </p>
+    <div class="diagram">
+      <div class="mermaid">
+flowchart LR
+    A["API Route<br/><small>conversations.py</small>"] --> B["ConversationService<br/><small>会話の永続化 + ルーティング</small>"]
+    B -->|"シフト関連?"| C{"should_handle"}
+    C -->|Yes| D["ShiftPlanningAgent<br/><small>シフト作成AI</small>"]
+    C -->|No| E["ChatAgent<br/><small>汎用問い合わせ</small>"]
+    B -. "A2AClient<br/>(インプロセス)" .- E
+    E --> F["ChatOrchestrator<br/><small>4ステップ制御</small>"]
+    F --> G["RagService<br/><small>マニュアル検索</small>"]
+    F --> H["LlmService<br/><small>回答生成</small>"]
+    G --> I[("Qdrant")]
+    H --> J["LLM API"]
+
+    classDef ag fill:#ede9fe,stroke:#7c3aed,color:#4c1d95;
+    class D,E ag;
+      </div>
+      <div class="legend">紫＝A2Aエージェント。ChatAgent と ShiftPlanningAgent はレジストリに登録され、A2AClient 経由で呼び出される</div>
+    </div>
+
+    <h3>登録されている A2A エージェント</h3>
+    <table>
+      <thead><tr><th>エージェントID</th><th>役割</th><th>使用ツール</th></tr></thead>
+      <tbody>
+        <tr><td><code>chat</code></td><td>ホテル業務の汎用問い合わせ対応（本資料の主対象）</td><td>ChatOrchestrator + RagService</td></tr>
+        <tr><td><code>manual-search</code></td><td>マニュアル検索単体エージェント</td><td>RagService</td></tr>
+        <tr><td><code>database-query</code></td><td>自然言語→SELECT生成でのDB参照（読取専用）</td><td>DBHub (MCP)</td></tr>
+        <tr><td><code>shift-planning</code></td><td>シフト作成AI</td><td>ShiftPlanningService</td></tr>
+        <tr><td><code>shift-solver</code></td><td>シフト最適化ソルバ</td><td>ShiftSolverService</td></tr>
+      </tbody>
+    </table>
+    <p class="filepath">実装: backend/app/a2a/registry.py, client.py, agents/chat_agent.py</p>
+  </section>
+
+  <!-- 4 -->
+  <section id="s4">
+    <h2 class="sec"><span class="n">4</span>AI応答の全体シーケンス（1問い合わせの流れ）</h2>
+    <p class="lead">
+      ユーザーが1つの質問を送ってから回答が返るまでの、コンポーネント間のやり取りです。
+      <code>/messages/stream</code> エンドポイントを使うと、途中経過（「マニュアルを検索中...」等）が SSE でリアルタイムに届きます。
+    </p>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant U as ユーザー<br/>(Flutter)
+    participant API as API Route
+    participant CS as Conversation<br/>Service
+    participant CA as ChatAgent<br/>(A2A)
+    participant OR as Chat<br/>Orchestrator
+    participant RS as RagService
+    participant QD as Qdrant
+    participant LS as LlmService
+    participant GM as LLM API
+
+    U->>API: POST /api/conversations/{id}/messages<br/>{body_text}
+    API->>CS: add_message()
+    CS->>CS: 会話取得 / シフト判定(should_handle)
+    CS->>CA: A2AClient.send_task("chat", ...)
+    CA->>OR: process(user_message, history, state)
+
+    Note over OR: Step1 意図分類
+    OR->>OR: intent を判定
+
+    Note over OR: Step2 状態遷移
+    OR->>OR: (state, intent) → next_state
+
+    Note over OR,QD: Step3 ツール実行 (question系のみ)
+    OR->>RS: retrieve(query)
+    RS->>GM: タグ生成 / クエリ拡張 / HyDE (generate_raw)
+    RS->>QD: 並列ベクトル検索 + キーワード検索
+    QD-->>RS: 候補チャンク
+    RS->>GM: Reranking (関連度再評価)
+    RS-->>OR: chunks / sources / pictures
+
+    Note over OR,GM: Step4 回答生成
+    OR->>LS: generate_answer(query, context, history)
+    LS->>LS: システムプロンプト組み立て<br/>(役割+方針+用語+辞書+添削例+出力形式)
+    LS->>GM: 生成リクエスト (temperature=0.2)
+    GM-->>LS: JSON {steps, quick_replies}
+    LS-->>OR: steps / quick_replies
+    OR-->>CA: OrchestratorResult
+    CA-->>CS: Task(answer, sources, steps...)
+    CS->>CS: 会話を保存 (次stateを永続化)
+    CS-->>API: MessageResponse
+    API-->>U: body_text / steps / source_manuals /<br/>quick_replies / pictures
+      </div>
+    </div>
+    <div class="callout">
+      <b>ストリーミング：</b> <code>/messages/stream</code> は <code>on_progress</code> コールバックで各ステップの状況を
+      <code>data: {type:"progress", step, text}</code> 形式で逐次配信し、最後に <code>type:"complete"</code> で確定メッセージを返します（Server-Sent Events）。
+    </div>
+  </section>
+
+  <!-- 5 -->
+  <section id="s5">
+    <h2 class="sec"><span class="n">5</span>オーケストレーターの4ステップ処理</h2>
+    <p class="lead">
+      <code>ChatOrchestrator.process()</code> がチャット制御の心臓部です。意図分類 → 状態遷移 → ツール選択 → 回答生成の
+      4ステップで動きます。「質問系」のインテントのときだけ RAG 検索が走り、雑談・確認・終了などは LLM 単独で応答します。
+    </p>
+    <div class="diagram">
+      <div class="mermaid">
+flowchart TB
+    S["ユーザーメッセージ"] --> S1
+    subgraph S1G["Step 1: 意図分類"]
+      S1["intent を判定<br/>(現状はルールベース分類)"]
+    end
+    S1 --> S2["Step 2: 状態遷移<br/>(現state, intent) → next_state"]
+    S2 --> S3{"Step 3: ツール選択<br/>_TOOL_BY_INTENT"}
+    S3 -->|"question / clarification / complaint"| T1["search_manual<br/>RagService.retrieve()"]
+    S3 -->|"general_question"| T2["search_web<br/>Gemini Search Grounding"]
+    S3 -->|"small_talk / confirmation / closing"| T3["ツールなし<br/>LLM単独"]
+    T1 --> S4
+    T2 --> S4
+    T3 --> S4
+    S4["Step 4: 回答生成<br/>状態・意図別の補足指示を付与して<br/>generate_answer()"]
+    S4 --> R["OrchestratorResult<br/>answer / steps / quick_replies /<br/>sources / pictures / next_state"]
+
+    classDef t fill:#dbeafe,stroke:#2563EB;
+    class T1,T2,T3 t;
+      </div>
+    </div>
+
+    <div class="grid2">
+      <div>
+        <h3>インテント分類</h3>
+        <table>
+          <thead><tr><th>インテント</th><th>意味</th></tr></thead>
+          <tbody>
+            <tr><td><code>question</code></td><td>社内マニュアル・業務手順の質問</td></tr>
+            <tr><td><code>general_question</code></td><td>天気・ニュース等 社外の一般情報</td></tr>
+            <tr><td><code>small_talk</code></td><td>雑談・挨拶</td></tr>
+            <tr><td><code>complaint</code></td><td>クレーム・不満・問題報告</td></tr>
+            <tr><td><code>confirmation</code></td><td>はい/いいえ の確認応答</td></tr>
+            <tr><td><code>clarification</code></td><td>追加情報・詳細説明</td></tr>
+            <tr><td><code>closing</code></td><td>終了・お礼</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div>
+        <h3>インテント → ツール</h3>
+        <table>
+          <thead><tr><th>インテント</th><th>ツール</th></tr></thead>
+          <tbody>
+            <tr><td>question</td><td><span class="pill py">search_manual</span></td></tr>
+            <tr><td>clarification</td><td><span class="pill py">search_manual</span></td></tr>
+            <tr><td>complaint</td><td><span class="pill py">search_manual</span></td></tr>
+            <tr><td>general_question</td><td><span class="pill ext">search_web</span></td></tr>
+            <tr><td>small_talk</td><td>なし</td></tr>
+            <tr><td>confirmation</td><td>なし</td></tr>
+            <tr><td>closing</td><td>なし</td></tr>
+          </tbody>
+        </table>
+        <p class="filepath">状態: greeting / question_recv / confirming / collecting_info / closing。<br/>(現state, intent) の遷移表で次状態が決まり DynamoDB に永続化。</p>
+      </div>
+    </div>
+    <p class="filepath">実装: backend/app/services/orchestrator.py</p>
+  </section>
+
+  <!-- 6 -->
+  <section id="s6">
+    <h2 class="sec"><span class="n">6</span>RAG検索パイプライン（回答生成側）</h2>
+    <p class="lead">
+      「質問系」インテントで呼ばれる <code>RagService.retrieve()</code> は、単純なベクトル検索ではなく、
+      複数の検索手法を組み合わせて精度を高める多段パイプラインです。
+      1本の質問から複数のクエリ・仮説文・タグを生成し、それぞれで検索した結果を統合・再ランキングします。
+    </p>
+    <div class="diagram">
+      <div class="mermaid">
+flowchart TB
+    Q["ユーザーの質問"]
+    Q --> A1["① 検索タグ生成<br/>質問→キーワード 3〜5個 (LLM)"]
+    Q --> A2["② クエリ拡張 Multi-Query<br/>3種の言い換え (LLM)"]
+    Q --> A3["③ HyDE<br/>仮説的な回答文を生成 (LLM)"]
+
+    A1 --> B["④ ベクトル化<br/>EmbeddingService"]
+    A2 --> B
+    A3 --> B
+
+    B --> C1["タグフィルタ検索<br/>payload.tags で絞込"]
+    B --> C2["通常ベクトル検索<br/>(元クエリ)"]
+    B --> C3["Multi-Query 検索<br/>(拡張クエリ×3)"]
+    B --> C4["HyDE 検索<br/>(仮説回答の埋め込み)"]
+    Q --> C5["⑤ キーワード検索<br/>固有語/数値の完全一致 (ハイブリッド)"]
+
+    C1 --> D["⑥ 統合・重複排除<br/>chunk_id でマージ→スコア順 上位N×2"]
+    C2 --> D
+    C3 --> D
+    C4 --> D
+    C5 --> D
+
+    D --> E["⑦ 画像のみチャンクを後方へ<br/>テキスト量の多い順に整列"]
+    E --> F["⑧ Reranking (LLM)<br/>(質問,文書)関連度を再評価→上位N件"]
+    F --> G["⑨ section_text へ展開<br/>階層的チャンキング:<br/>ヒット箇所の見出し単位全文をLLMへ"]
+    G --> H["回答生成 (LlmService)"]
+
+    classDef llm fill:#ede9fe,stroke:#7c3aed,color:#4c1d95;
+    classDef srch fill:#dbeafe,stroke:#2563EB;
+    class A1,A2,A3,F llm;
+    class C1,C2,C3,C4,C5 srch;
+      </div>
+      <div class="legend">紫＝LLM呼び出しを伴う工程／青＝Qdrant等への検索。①〜③と⑧はいずれも失敗時に空/元順へフォールバックし、検索停止しない設計。</div>
+    </div>
+
+    <h3>各検索手法の狙い</h3>
+    <table>
+      <thead><tr><th>手法</th><th>解決したい弱点</th></tr></thead>
+      <tbody>
+        <tr><td>タグフィルタ検索</td><td>取込時にLLMが付けた <code>tags</code> で候補を業務領域ごとに絞り、ノイズを削減</td></tr>
+        <tr><td>Multi-Query</td><td>質問の言い回しの揺れで正解チャンクを取りこぼす問題を、複数表現の並列検索で補完</td></tr>
+        <tr><td>HyDE</td><td>質問文よりも「実際のマニュアル文体」に近い仮説回答で検索し、意味的距離を縮める</td></tr>
+        <tr><td>キーワード検索（ハイブリッド）</td><td>「勤次郎」「HACCP」等の固有名詞・数値の完全一致に弱いベクトル検索を、本文一致で補強</td></tr>
+        <tr><td>Reranking</td><td>ベクトル類似度だけでは拾えない文脈的関連性を、LLMの一括スコアリングで補正</td></tr>
+        <tr><td>階層的チャンキング（section_text）</td><td>「AならB、BならC」の条件分岐がチャンク分断で欠落する問題を、見出し単位の全文をLLMに渡して回避</td></tr>
+      </tbody>
+    </table>
+    <p class="filepath">実装: backend/app/services/rag_service.py / qdrant_store.py / embedding_service.py</p>
+  </section>
+
+  <!-- 7 -->
+  <section id="s7">
+    <h2 class="sec"><span class="n">7</span>RAG登録フロー（マニュアル取り込み側）</h2>
+    <p class="lead">
+      RAGの知識源は、管理側から PDF / Word / Excel / PowerPoint のマニュアルを取り込むことで登録されます。
+      入口は <code>POST /api/manuals/import</code>、実処理は <code>ManualIngestionService.import_manual()</code> です。
+      構造抽出 → 画像説明 → チャンク分割 → タグ生成 → ベクトル化 → Qdrant登録の一連を、取込時の一回限りコストとして実行します。
+    </p>
+    <div class="diagram">
+      <div class="mermaid">
+flowchart TB
+    U["管理者がファイルをアップロード<br/>PDF / DOCX / XLSX / PPTX"] --> R["POST /api/manuals/import"]
+    R --> W["① 元ファイルを保存<br/>_write_asset()"]
+    W --> X["② 構造/テキスト抽出<br/>Docling が第一候補<br/>(PDFはPyMuPDF+Vision経路を優先)"]
+    X --> O["③ OCR<br/>スキャン文書のみ (Tesseract)"]
+    O --> IMG["④ 画像/表/キャプション抽出<br/>Gemini Vision で日本語説明を付与<br/>本文へ [図版]説明 として結合"]
+    IMG --> CH["⑤ チャンク分割 (小チャンク)<br/>+ section_text (見出し単位の全文) を保持"]
+    CH --> CX["⑥ コンテキスト前置<br/>各チャンクにマニュアル名+見出しを付与"]
+    CX --> TG["⑦ タグ生成 (LLM)<br/>チャンクごとにキーワードタグ 5〜10個"]
+    TG --> EM["⑧ ベクトル化<br/>小チャンク本文を埋め込み<br/>(RETRIEVAL_DOCUMENT)"]
+    EM --> QD[("⑨ Qdrant 登録<br/>ベクトル + payload:<br/>tags / section_text / メタ情報")]
+    EM --> MD[("メタ/チャンクを保存<br/>DynamoDB / JSON")]
+
+    classDef llm fill:#ede9fe,stroke:#7c3aed,color:#4c1d95;
+    classDef st fill:#dcfce7,stroke:#16a34a,color:#14532d;
+    class IMG,TG llm;
+    class QD,MD st;
+      </div>
+      <div class="legend">紫＝LLM/Vision を伴う工程。<code>POST /api/manuals/reindex</code> で既存マニュアルの再抽出・再インデックスも可能（更新方式は「再登録」が基本）。</div>
+    </div>
+
+    <h3>チャンクとして Qdrant に保存される主な情報</h3>
+    <table>
+      <thead><tr><th>フィールド</th><th>内容</th></tr></thead>
+      <tbody>
+        <tr><td><code>chunk_text</code></td><td>検索対象となる小チャンク本文（500〜1000文字目安）。これをベクトル化</td></tr>
+        <tr><td><code>section_text</code></td><td>そのチャンクが属する見出し単位の全文。回答時にLLMへ渡す文脈（階層的チャンキング）</td></tr>
+        <tr><td><code>tags</code></td><td>取込時にLLMが生成したキーワードタグ配列。タグフィルタ検索で使用</td></tr>
+        <tr><td><code>related_picture_ids</code></td><td>チャンクに関連する画像IDの配列。回答のステップ表示で画像を紐付け</td></tr>
+        <tr><td><code>page_no</code> / <code>page_or_sheet</code></td><td>出典のページ/シート位置。参照マニュアル表示に使用</td></tr>
+      </tbody>
+    </table>
+    <p class="filepath">実装: backend/app/services/manual_ingestion.py / api/routes/manuals.py</p>
+  </section>
+
+  <!-- 8 -->
+  <section id="s8">
+    <h2 class="sec"><span class="n">8</span>システムプロンプトの動的組み立て</h2>
+    <p class="lead">
+      LLMへ渡すシステムプロンプトは固定文ではなく、<code>LlmService._system_prompt()</code> が
+      複数のソースから毎回動的に組み立てます。管理者がAdmin画面で編集した内容が即座に反映される仕組みです。
+    </p>
+    <div class="diagram">
+      <div class="mermaid">
+flowchart LR
+    subgraph SRC["ソース"]
+      P1["4カテゴリ プロンプト<br/>役割 / 方針 / 口調 / 特記<br/><small>PostgreSQL prompts</small>"]
+      P2["業務用語集<br/><small>glossary ファイル</small>"]
+      P3["用語テーブル<br/><small>terms (60秒キャッシュ)</small>"]
+      P4["同義語辞書<br/><small>dictionary</small>"]
+      P5["過去の添削例 最新10件<br/><small>message_corrections<br/>(毎回DB取得)</small>"]
+      P6["会話コンテキスト<br/><small>状態・意図別の補足</small>"]
+      P7["出力フォーマット指示<br/><small>steps/quick_replies のJSON</small>"]
+    end
+    P1 --> M["システムプロンプト<br/>(連結)"]
+    P2 --> M
+    P3 --> M
+    P4 --> M
+    P5 --> M
+    P6 --> M
+    P7 --> M
+    M --> L["LLM 呼び出し<br/>generate_answer()"]
+    H["会話履歴 (全ターン)"] --> L
+    CTX["RAG検索の section_text"] --> L
+    L --> J["JSON {steps, quick_replies} を返す"]
+
+    classDef s fill:#eff6ff,stroke:#2563EB;
+    class P1,P2,P3,P4,P5,P6,P7 s;
+      </div>
+    </div>
+    <div class="callout">
+      <b>添削フィードバックループ：</b> 管理者が会話詳細画面で「✗ 誤り」と判定し正しい回答を登録すると、
+      <code>message_corrections</code> に保存され、次回以降のシステムプロンプト末尾に「過去の添削例」として付加されます。
+      LLMが few-shot 例として参照し、同種の誤りを繰り返さないよう回答品質が継続的に改善されます。
+    </div>
+    <div class="callout">
+      <b>出力フォーマット：</b> LLMは必ず <code>{"steps":[{"text":"...","image":1}], "quick_replies":[...]}</code> のJSONで返すよう指示されます。
+      バックエンドがこれをパースし、フロントは1ステップずつ順番に表示（「ステップ N/M」）、画像はステップごとに紐付け、
+      <code>quick_replies</code> があればボタンを表示します。多ターン会話では同一会話の全履歴を <code>history</code> として毎回渡します。
+    </div>
+    <p class="filepath">実装: backend/app/services/llm_service.py / prompt_service.py / vocabulary_service.py</p>
+  </section>
+
+  <!-- 9 -->
+  <section id="s9">
+    <h2 class="sec"><span class="n">9</span>データモデルとストレージ対応</h2>
+    <p class="lead">用途に応じて3種類のストレージを使い分けています。</p>
+    <table>
+      <thead><tr><th>ストレージ</th><th>保存するデータ</th><th>書き込み元</th></tr></thead>
+      <tbody>
+        <tr><td><span class="pill db">Qdrant</span></td><td>ManualChunk のベクトル＋payload（tags / section_text / メタ）</td><td>ManualIngestionService（取込・再インデックス）</td></tr>
+        <tr><td><span class="pill db">DynamoDB</span></td><td>会話（Conversation / Message / conversation_state）・会話評価・誤り指摘</td><td>Python API（ConversationService）</td></tr>
+        <tr><td><span class="pill db">PostgreSQL</span></td><td>システムプロンプト・メッセージ評価・添削・用語・辞書</td><td>Python API と Laravel Admin が共用（評価/添削はAdminが直接書込）</td></tr>
+      </tbody>
+    </table>
+
+    <h3>会話まわりの主なデータ構造</h3>
+    <table>
+      <thead><tr><th>モデル</th><th>主なフィールド</th></tr></thead>
+      <tbody>
+        <tr><td>Conversation</td><td><code>conversation_id</code> / <code>user_id</code> / <code>conversation_state</code>（会話フェーズ）/ <code>started_at</code></td></tr>
+        <tr><td>Message</td><td><code>body_text</code> / <code>source_manuals</code> / <code>quick_replies</code> / <code>pictures</code> / <code>steps</code></td></tr>
+        <tr><td>ManualChunk</td><td><code>chunk_text</code> / <code>section_text</code> / <code>tags</code> / <code>related_picture_ids</code> / <code>page_no</code></td></tr>
+        <tr><td>MessageCorrection</td><td><code>wrong_answer</code> / <code>correct_answer</code> / <code>source_manual</code>（添削ループ用）</td></tr>
+      </tbody>
+    </table>
+    <p class="filepath">開発初期はJSONファイルへのフォールバック永続化も可（本番相当ではDynamoDBが正本）。</p>
+  </section>
+
+  <!-- 10 -->
+  <section id="s10">
+    <h2 class="sec"><span class="n">10</span>設計と現行実装の差分メモ</h2>
+    <p class="lead">
+      設計書（docs/design.md）に記載があるものの、現在のコード上では完全には有効化されていない点があります。
+      現状把握の精度を上げるため、実装コードを読んだ上で気づいた差分を記録しておきます。
+    </p>
+    <div class="callout warn">
+      <b>① 意図分類はルールベースのみが稼働：</b>
+      設計ではLLMによるJSON意図分類（失敗時にルールベースへフォールバック）と記載されていますが、
+      現行の <code>_classify_intent()</code> は <code>_fallback_classify()</code>（正規表現ベース）を直接返す実装になっており、
+      LLM分類プロンプト（<code>_INTENT_PROMPT</code>）は定義済みだが呼び出されていません。
+    </div>
+    <div class="callout warn">
+      <b>② Self-reflection（自己検証）は未接続：</b>
+      設計の「Step 9: 回答をLLMが自己検証し、問題があれば再検索」に対応する <code>_verify_answer()</code> は
+      実装されていますが、<code>process()</code> の本フローからは呼び出されていません（定義のみ）。
+    </div>
+    <div class="callout">
+      <b>③ 補足：</b> 上記2点は「設計意図として存在するが現行フローに組み込まれていない」状態で、
+      いずれも既にコードの下地があるため、有効化は比較的小さな変更で可能な位置づけです。
+      本資料の図はいずれも<strong>現行コードの実際の挙動</strong>を基準に描き、設計のみの工程はグレー扱い（本節に集約）としています。
+    </div>
+  </section>
+</main>
+
+<footer>
+  <p>本資料は manager-ai-1 リポジトリのバックエンド実装（Python）および docs/design.md を読み取り、現状のAIチャット機能の構成・処理フローを図解したものです。</p>
+  <p>参照した主なファイル: services/{orchestrator, rag_service, llm_service, embedding_service, qdrant_store, manual_ingestion, conversation_service}.py ／ a2a/{client, registry, agents/chat_agent}.py ／ api/routes/{conversations, manuals}.py ／ core/config.py ／ docs/design.md</p>
+</footer>
+
+<script>
+  mermaid.initialize({
+    startOnLoad:true,
+    theme:'base',
+    themeVariables:{
+      primaryColor:'#EFF6FF', primaryTextColor:'#0f172a', primaryBorderColor:'#2563EB',
+      lineColor:'#64748b', fontFamily:'"Segoe UI","Yu Gothic UI",Meiryo,sans-serif', fontSize:'14px'
+    },
+    flowchart:{ curve:'basis', useMaxWidth:true },
+    sequence:{ useMaxWidth:true, wrap:true }
+  });
+</script>
+</body>
+</html>

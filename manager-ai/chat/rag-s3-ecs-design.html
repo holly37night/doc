@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>支配人AI RAG 改修設計 — S3自動取込 / ECS移行 / データ構造拡張 / 画像回転補正</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.9.1/mermaid.min.js"></script>
+<style>
+  :root{
+    --navy:#1E3A8A; --blue:#2563EB; --sky:#3B82F6; --ink:#0f172a;
+    --slate:#475569; --line:#e2e8f0; --bg:#f4f6fb; --card:#ffffff;
+    --green:#059669; --amber:#d97706; --red:#dc2626; --violet:#7c3aed;
+    --chip:#eef2ff;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,sans-serif;
+    line-height:1.7;}
+  header{background:linear-gradient(135deg,var(--navy),var(--blue));color:#fff;padding:40px 32px;}
+  header h1{margin:0 0 8px;font-size:26px;letter-spacing:.3px}
+  header p{margin:0;opacity:.9;font-size:14px}
+  .wrap{max-width:1080px;margin:0 auto;padding:28px 24px 80px}
+  section{background:var(--card);border:1px solid var(--line);border-radius:14px;
+    padding:26px 28px;margin:22px 0;box-shadow:0 1px 3px rgba(15,23,42,.04)}
+  h2{font-size:20px;color:var(--navy);margin:0 0 6px;padding-bottom:10px;border-bottom:2px solid var(--line)}
+  h2 .num{display:inline-block;background:var(--blue);color:#fff;border-radius:8px;
+    font-size:14px;padding:2px 10px;margin-right:10px;vertical-align:middle}
+  h3{font-size:16px;color:var(--navy);margin:22px 0 8px}
+  p{margin:8px 0}
+  .lead{color:var(--slate);font-size:14px}
+  .diagram{background:#fbfcfe;border:1px dashed #cbd5e1;border-radius:12px;padding:14px;margin:14px 0;overflow-x:auto}
+  .diagram .cap{font-size:12px;color:var(--slate);margin:0 0 6px;font-weight:600}
+  table{width:100%;border-collapse:collapse;margin:14px 0;font-size:13.5px}
+  th,td{border:1px solid var(--line);padding:9px 11px;text-align:left;vertical-align:top}
+  th{background:var(--chip);color:var(--navy);font-weight:600}
+  td code,p code,li code{background:#f1f5f9;border:1px solid #e2e8f0;border-radius:5px;padding:1px 6px;font-size:12.5px;color:#0f172a}
+  .tag{display:inline-block;font-size:11.5px;font-weight:700;border-radius:999px;padding:2px 10px;margin-right:6px}
+  .new{background:#dcfce7;color:#166534}
+  .chg{background:#ffedd5;color:#9a3412}
+  .keep{background:#e0e7ff;color:#3730a3}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media(max-width:820px){.grid2{grid-template-columns:1fr}}
+  .callout{border-left:4px solid var(--blue);background:#eff6ff;border-radius:8px;padding:12px 16px;margin:14px 0;font-size:13.5px}
+  .callout.warn{border-color:var(--amber);background:#fffbeb}
+  .callout.ok{border-color:var(--green);background:#ecfdf5}
+  ul.tight{margin:8px 0;padding-left:22px}
+  ul.tight li{margin:5px 0}
+  .pill{font-size:11px;font-weight:700;color:#fff;background:var(--slate);border-radius:6px;padding:2px 8px;margin-left:6px}
+  .toc{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+  .toc a{font-size:13px;text-decoration:none;color:var(--navy);background:var(--chip);
+    border:1px solid #dbe1ff;border-radius:8px;padding:6px 12px}
+  .toc a:hover{background:#dbe1ff}
+  pre.code{background:#0f172a;color:#e2e8f0;border-radius:10px;padding:16px 18px;overflow-x:auto;font-size:12.5px;line-height:1.55}
+  pre.code .c{color:#94a3b8}
+  pre.code .k{color:#93c5fd}
+  pre.code .s{color:#86efac}
+  pre.code .add{color:#86efac}
+  .foot{color:var(--slate);font-size:12px;text-align:center;margin-top:30px}
+  .step{counter-reset:none}
+  .legend{font-size:12px;color:var(--slate);margin-top:6px}
+</style>
+</head>
+<body>
+<header>
+  <h1>支配人AI RAG 改修設計書</h1>
+  <p>S3自動取込パイプライン ／ RAGのECS移行 ／ 登録データ構造の拡張 ／ 画像の向き補正　<span style="opacity:.7">— 作成日 2026-08-12</span></p>
+</header>
+
+<div class="wrap">
+
+<section>
+  <h2><span class="num">概要</span>やりたいこと4点</h2>
+  <p class="lead">現行の東横イン支配人AIは、ローカルの <code>doc/</code> フォルダをスクリプト（<code>ingest_docs.py</code>）で手動プッシュしてRAG登録し、Qdrant／DynamoDB Local／Postgres を docker-compose で動かしています。今回の改修は次の4点です。</p>
+  <table>
+    <tr><th style="width:34px">#</th><th>要望</th><th>要点</th></tr>
+    <tr><td>1</td><td><b>S3配置 → 自動でRAG登録</b></td><td>S3にファイルを置くだけで、イベント駆動で自動的に取込・ベクトル化・登録まで走る</td></tr>
+    <tr><td>2</td><td><b>現状のRAGだけをECSへ</b></td><td>まずRAG部分（API＋Qdrant＋メタデータ）だけをECS(Fargate)へ移設。フロント/管理画面は現状維持で段階移行</td></tr>
+    <tr><td>3</td><td><b>データ構造の追加</b></td><td>① S3パス（クリックでファイルを開くリンク）② ファイル更新日（ファイルから取得）</td></tr>
+    <tr><td>4</td><td><b>画像の向き補正</b></td><td>横向きになる画像があるため、EXIF＋Vision＋アスペクト比の多層判定で改善</td></tr>
+  </table>
+  <div class="toc">
+    <a href="#a1">1. 現状構成</a>
+    <a href="#a2">2. 目標構成（S3＋ECS）</a>
+    <a href="#a3">3. シーケンス：S3自動取込</a>
+    <a href="#a4">4. シーケンス：質問応答＋S3リンク</a>
+    <a href="#a5">5. データ構造の追加</a>
+    <a href="#a6">6. 画像の向き補正</a>
+    <a href="#a7">7. 移行ステップ</a>
+  </div>
+</section>
+
+<section id="a1">
+  <h2><span class="num">1</span>現状構成（ローカル docker-compose）</h2>
+  <p class="lead">全サービスが1台のPC上のコンテナで完結。ファイル取込は人手でスクリプトを実行する“プッシュ型”。RAGデータ（ベクトル・画像・メタデータ）はローカルボリューム上にあり Git 管理外。</p>
+  <div class="diagram">
+    <p class="cap">図1-1. 現状のコンポーネント構成</p>
+    <pre class="mermaid">
+flowchart LR
+  subgraph LOCAL["ローカル PC (docker-compose)"]
+    direction TB
+    OP["運用者"] -->|"手動実行<br/>ingest_docs.py"| ING["取込スクリプト"]
+    DOC[("doc/ フォルダ<br/>PDF/Word/Excel/PPT")] --> ING
+    ING -->|"POST /api/manuals/import"| BE["backend<br/>FastAPI :8086"]
+    FE["frontend<br/>Flutter Web :3000"] --> BE
+    ADM["admin<br/>Laravel :8088"] --> BE
+    BE --> QD[("Qdrant :6333<br/>ベクトル")]
+    BE --> DDB[("DynamoDB Local :8000<br/>マニュアル/会話")]
+    BE --> PG[("Postgres :5432<br/>プロンプト/管理")]
+    BE --> AST[("manual-assets/<br/>抽出画像・原本")]
+    BE -.MCP.-> DBH["dbhub :18080"]
+    BE -->|"Vision/Embedding"| GEM["Gemini API"]
+  end
+  classDef store fill:#eef2ff,stroke:#6366f1,color:#1e1b4b;
+  classDef svc fill:#dbeafe,stroke:#2563eb,color:#0f172a;
+  classDef ext fill:#f1f5f9,stroke:#94a3b8,color:#334155;
+  class QD,DDB,PG,AST,DOC store;
+  class BE,FE,ADM,ING svc;
+  class GEM,DBH,OP ext;
+    </pre>
+  </div>
+  <div class="callout warn">
+    <b>現状の課題</b>
+    <ul class="tight">
+      <li>取込が手動プッシュ（<code>ingest_docs.py</code> をPCで実行）。担当者・端末に依存する。</li>
+      <li>原本は <code>manual-assets/&lt;manual_id&gt;/</code> のローカル保存。共有・可搬性・バックアップが弱い。</li>
+      <li><code>updated_at</code> は「取込した時刻」で、<b>ファイル本来の更新日ではない</b>。</li>
+      <li>参照元リンクはバックエンドのローカルファイル配信に依存（S3の恒久URLがない）。</li>
+      <li>画像の向き補正が Gemini Vision の判定のみで、EXIF回転や誤判定に弱い。</li>
+    </ul>
+  </div>
+</section>
+
+<section id="a2">
+  <h2><span class="num">2</span>目標構成（S3イベント取込 ＋ RAG on ECS）</h2>
+  <p class="lead">S3を「原本の置き場」兼「取込トリガ」にし、RAG（API・取込ワーカー・Qdrant・メタデータ）をAWSへ移設します。<b>要望2の「現状のRAGだけ」</b>に合わせ、まずは点線枠の<b>RAGコア</b>だけをECS化し、フロント/管理画面は段階移行とします。</p>
+  <div class="diagram">
+    <p class="cap">図2-1. 目標のAWS構成（RAGコアをECSへ）</p>
+    <pre class="mermaid">
+flowchart TB
+  UP["運用者 / 他システム"] -->|"アップロード"| S3SRC[("S3: 原本バケット<br/>manuals/*.pdf,docx,xlsx,pptx")]
+  S3SRC -->|"S3 Event Notification"| EVB["EventBridge / SQS<br/>取込キュー"]
+  EVB --> WK
+
+  subgraph ECS["Amazon ECS (Fargate) — RAGコア"]
+    direction TB
+    API["RAG API サービス<br/>FastAPI (回答生成/検索)"]
+    WK["取込ワーカー サービス<br/>ingestion consumer"]
+    QD["Qdrant サービス<br/>(Fargate + EFS 永続化)"]
+    API --> QD
+    WK --> QD
+  end
+
+  WK -->|"原本DL / 画像UP"| S3SRC
+  WK --> S3IMG[("S3: 画像バケット<br/>manual-assets/*")]
+  API --> S3IMG
+  WK --> DDB[("DynamoDB<br/>マニュアル・メタデータ")]
+  API --> DDB
+  WK -->|"Vision/Embedding"| GEM["Gemini API"]
+  API -->|"LLM/Embedding"| GEM
+
+  FE["frontend (Flutter)"] --> ALB["ALB / API Gateway"]
+  ALB --> API
+  ADM["admin (Laravel)"] --> ALB
+  API --> PG[("RDS PostgreSQL<br/>プロンプト/管理 ※後続移行")]
+
+  classDef store fill:#eef2ff,stroke:#6366f1,color:#1e1b4b;
+  classDef svc fill:#dbeafe,stroke:#2563eb,color:#0f172a;
+  classDef ext fill:#f1f5f9,stroke:#94a3b8,color:#334155;
+  classDef later fill:#fef9c3,stroke:#ca8a04,color:#713f12,stroke-dasharray:5 4;
+  class S3SRC,S3IMG,DDB,QD store;
+  class API,WK,FE,ADM svc;
+  class GEM,EVB,ALB ext;
+  class PG later;
+    </pre>
+    <p class="legend">▧ 黄色破線（RDS）は後続フェーズで移行する範囲。まずは <b>S3・取込ワーカー・RAG API・Qdrant・DynamoDB</b> をAWS化する。</p>
+  </div>
+  <div class="grid2">
+    <div>
+      <h3>コンポーネントの対応</h3>
+      <table>
+        <tr><th>現状</th><th>目標</th></tr>
+        <tr><td>doc/ フォルダ</td><td><span class="tag new">新</span>S3 原本バケット</td></tr>
+        <tr><td>ingest_docs.py（手動）</td><td><span class="tag chg">変</span>取込ワーカー（S3イベント駆動）</td></tr>
+        <tr><td>backend :8086</td><td><span class="tag chg">変</span>ECS: RAG API サービス</td></tr>
+        <tr><td>Qdrant コンテナ</td><td><span class="tag chg">変</span>ECS: Qdrant + EFS</td></tr>
+        <tr><td>DynamoDB Local</td><td><span class="tag chg">変</span>Amazon DynamoDB</td></tr>
+        <tr><td>manual-assets/（ローカル）</td><td><span class="tag new">新</span>S3 画像バケット</td></tr>
+        <tr><td>Postgres / admin / frontend</td><td><span class="tag keep">維持</span>後続フェーズで移行</td></tr>
+      </table>
+    </div>
+    <div>
+      <h3>設計上のポイント</h3>
+      <ul class="tight">
+        <li><b>S3イベント → SQS → 取込ワーカー</b>で疎結合化。大きいファイルや同時多発でもキューで平準化。</li>
+        <li>Qdrantは<b>Fargate＋EFS</b>で永続化。既存のエクスポート/インポート手順（<code>export-rag-data.ps1</code>）で初回データ移行が可能。</li>
+        <li>取込ワーカーは既存の <code>manual_ingestion.import_manual()</code> を<b>ほぼ再利用</b>し、入力元をローカル→S3に差し替える。</li>
+        <li>APIとワーカーを<b>別サービス</b>に分離し、取込の重い処理が回答応答を圧迫しないようにする。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section id="a3">
+  <h2><span class="num">3</span>シーケンス：S3配置 → 自動RAG登録</h2>
+  <p class="lead">ファイルをS3に置くと、以降は無人で取込が完走します。冪等性（同一キーの再取込は上書き）と、S3の <code>LastModified</code>／ファイル内部の更新日を取り込む点がポイントです。</p>
+  <div class="diagram">
+    <p class="cap">図3-1. S3イベント駆動の自動取込シーケンス</p>
+    <pre class="mermaid">
+sequenceDiagram
+  autonumber
+  actor OP as 運用者/他システム
+  participant S3 as S3 原本バケット
+  participant Q as SQS 取込キュー
+  participant WK as 取込ワーカー(ECS)
+  participant DOC as 文書解析(pymupdf/docling)
+  participant GM as Gemini(Vision/Embed)
+  participant IMG as S3 画像バケット
+  participant VS as Qdrant
+  participant MD as DynamoDB(メタデータ)
+
+  OP->>S3: マニュアルをアップロード<br/>(manuals/xxx.pdf)
+  S3-->>Q: ObjectCreated イベント通知
+  WK->>Q: メッセージ受信(ロングポーリング)
+  WK->>S3: 原本ダウンロード + HeadObject(LastModified)
+  Note over WK: file_updated_at =<br/>文書内部の更新日→無ければLastModified
+  WK->>DOC: テキスト/表/画像を抽出
+  DOC-->>WK: chunks + 生画像
+  loop 画像ごと
+    WK->>WK: 向き補正(EXIF→アスペクト比→Vision)
+    WK->>GM: 画像キャプション生成
+    GM-->>WK: 日本語説明
+    WK->>IMG: 補正済み画像をアップロード
+  end
+  WK->>GM: チャンクをEmbedding
+  GM-->>WK: ベクトル
+  WK->>VS: upsert(ベクトル+payload:s3_key等)
+  WK->>MD: マニュアルmeta保存<br/>(s3_uri, file_updated_at, pictures[s3_key])
+  WK->>Q: メッセージ削除(完了)
+  Note over WK,MD: 失敗時はSQSリトライ→DLQへ退避
+    </pre>
+  </div>
+  <div class="callout ok">
+    <b>自動化の効果</b>：担当者PC不要・24時間無人取込・キューによる再試行/平準化。フォルダ運用（<code>manuals/</code>配下に置くだけ）で更新も差替えも回る。
+  </div>
+</section>
+
+<section id="a4">
+  <h2><span class="num">4</span>シーケンス：質問応答 → S3リンクで原本を開く</h2>
+  <p class="lead">回答時に参照したマニュアル名に加え、<b>S3の原本リンク（クリックで開く）</b>と<b>ファイル更新日</b>をUIに返します。リンクはS3の署名付きURL（presigned URL）を都度発行し、安全に共有します。</p>
+  <div class="diagram">
+    <p class="cap">図4-1. 回答生成とS3リンク発行のシーケンス</p>
+    <pre class="mermaid">
+sequenceDiagram
+  autonumber
+  actor U as 利用者
+  participant FE as frontend(Flutter)
+  participant API as RAG API(ECS)
+  participant GM as Gemini(Embed/LLM)
+  participant VS as Qdrant
+  participant MD as DynamoDB
+  participant S3 as S3(原本/画像)
+
+  U->>FE: 質問を入力
+  FE->>API: POST /messages
+  API->>GM: 質問をEmbedding
+  GM-->>API: クエリベクトル
+  API->>VS: 類似検索(タグフィルタ)
+  VS-->>API: 上位チャンク(manual_id, s3_key)
+  API->>MD: マニュアルmeta取得<br/>(s3_uri, file_updated_at)
+  MD-->>API: メタデータ
+  API->>S3: presigned URL 発行(原本/画像)
+  S3-->>API: 期限付きURL
+  API->>GM: コンテキスト+履歴で回答生成
+  GM-->>API: 回答本文
+  API-->>FE: 回答 + source_manuals[]<br/>(title, s3_url, file_updated_at, 画像URL)
+  FE-->>U: 回答表示 + 「原本を開く」リンク<br/>+ 更新日バッジ + 正しい向きの画像
+  U->>FE: リンククリック
+  FE->>S3: presigned URL で原本を開く
+    </pre>
+  </div>
+</section>
+
+<section id="a5">
+  <h2><span class="num">5</span>1マニュアルあたりの登録データ構造（追加項目）</h2>
+  <p class="lead">既存の <code>ManualDocumentResponse</code> / <code>SourceManual</code> に、S3パスとファイル更新日を追加します。現状 <code>updated_at</code> は取込時刻のため、<b>ファイル由来の更新日は別項目</b>として明確に持ちます。</p>
+
+  <h3>ManualDocumentResponse（マニュアル本体メタデータ）</h3>
+  <table>
+    <tr><th>項目</th><th>型</th><th>区分</th><th>説明 / 取得元</th></tr>
+    <tr><td><code>manual_id</code></td><td>str</td><td><span class="tag keep">既存</span></td><td>マニュアルID</td></tr>
+    <tr><td><code>title</code></td><td>str</td><td><span class="tag keep">既存</span></td><td>ファイル名（拡張子除く）</td></tr>
+    <tr><td><code>file_type</code></td><td>enum</td><td><span class="tag keep">既存</span></td><td>pdf / docx / xlsx / pptx</td></tr>
+    <tr><td><code>source_path</code></td><td>str</td><td><span class="tag chg">変更</span></td><td>ローカルパス →（当面は互換保持しつつ）S3参照へ移行</td></tr>
+    <tr><td><code>s3_uri</code></td><td>str</td><td><span class="tag new">追加</span></td><td><b>S3のパス</b>。例 <code>s3://manuals-bucket/manuals/xxx.pdf</code>。UIのリンク元</td></tr>
+    <tr><td><code>s3_bucket</code> / <code>s3_key</code></td><td>str</td><td><span class="tag new">追加</span></td><td>presigned URL発行に使う分解値</td></tr>
+    <tr><td><code>file_updated_at</code></td><td>datetime</td><td><span class="tag new">追加</span></td><td><b>ファイルの更新日</b>。文書内部の更新日時（docxコアプロパティ / PDF ModDate）を優先し、無ければ S3 <code>LastModified</code></td></tr>
+    <tr><td><code>updated_at</code></td><td>datetime</td><td><span class="tag keep">既存</span></td><td>RAGへ取込・再索引した時刻（意味を「取込時刻」に明確化）</td></tr>
+    <tr><td><code>chunks[]</code> / <code>pictures[]</code></td><td>list</td><td><span class="tag keep">既存</span></td><td>本文チャンク / 抽出画像</td></tr>
+  </table>
+
+  <h3>ManualPicture（抽出画像）</h3>
+  <table>
+    <tr><th>項目</th><th>区分</th><th>説明</th></tr>
+    <tr><td><code>asset_path</code></td><td><span class="tag chg">変更</span></td><td>ローカルパス → S3キー参照へ</td></tr>
+    <tr><td><code>s3_key</code></td><td><span class="tag new">追加</span></td><td>画像バケット上のキー。表示用presigned URLを発行</td></tr>
+    <tr><td><code>rotation_applied</code></td><td><span class="tag new">追加</span></td><td>補正で適用した回転角(0/90/180/270)。監査・再処理用</td></tr>
+    <tr><td><code>caption</code> / <code>description</code></td><td><span class="tag keep">既存</span></td><td>Vision生成の日本語説明（検索対象）</td></tr>
+  </table>
+
+  <h3>SourceManual（回答時にUIへ返す参照元）</h3>
+  <table>
+    <tr><th>項目</th><th>区分</th><th>説明</th></tr>
+    <tr><td><code>title</code> / <code>manual_id</code></td><td><span class="tag keep">既存</span></td><td>参照元名</td></tr>
+    <tr><td><code>download_url</code></td><td><span class="tag chg">変更</span></td><td>ローカル配信 → <b>S3 presigned URL</b>（クリックで原本を開く）</td></tr>
+    <tr><td><code>file_updated_at</code></td><td><span class="tag new">追加</span></td><td>更新日バッジ表示用</td></tr>
+  </table>
+
+  <div class="callout">
+    <b>「ファイルから取得」の実装方針</b>：
+    <ul class="tight">
+      <li><b>DOCX/XLSX/PPTX</b>：OOXMLの <code>docProps/core.xml</code> の <code>dcterms:modified</code> を読む（python-docx / openpyxl / zipで取得可）。</li>
+      <li><b>PDF</b>：メタデータ <code>/ModDate</code>（pypdf <code>reader.metadata.modification_date</code>）。</li>
+      <li>文書内に更新日が無い場合のみ、S3オブジェクトの <code>LastModified</code> をフォールバックに使う。</li>
+    </ul>
+  </div>
+
+  <div class="diagram">
+    <p class="cap">図5-1. データ構造の変更（Pydanticスキーマ差分イメージ）</p>
+<pre class="code"><span class="c"># backend/app/models/schemas.py</span>
+<span class="k">class</span> ManualDocumentResponse(BaseModel):
+    manual_id: str
+    title: str
+    file_type: Literal[<span class="s">"pdf","docx","xlsx","pptx"</span>]
+    source_path: str
+    updated_at: datetime            <span class="c"># = 取込時刻（意味を明確化）</span>
+<span class="add">+   s3_uri: str | None = None       # 追加: S3パス（リンク元）</span>
+<span class="add">+   s3_bucket: str | None = None    # 追加</span>
+<span class="add">+   s3_key: str | None = None       # 追加</span>
+<span class="add">+   file_updated_at: datetime | None = None  # 追加: ファイル本来の更新日</span>
+    chunks: list[ManualChunk] = []
+    pictures: list[ManualPicture] = []
+
+<span class="k">class</span> ManualPicture(BaseModel):
+    ...
+    asset_path: str | None = None
+<span class="add">+   s3_key: str | None = None         # 追加: 画像のS3キー</span>
+<span class="add">+   rotation_applied: int = 0         # 追加: 適用した回転角</span>
+
+<span class="k">class</span> SourceManual(BaseModel):
+    ...
+    download_url: str | None = None   <span class="c"># S3 presigned URL に</span>
+<span class="add">+   file_updated_at: datetime | None = None  # 追加</span>
+</pre>
+  </div>
+</section>
+
+<section id="a6">
+  <h2><span class="num">6</span>画像の向き補正の改善</h2>
+  <p class="lead">現状は <code>_describe_image_with_orientation()</code> が Gemini Vision の回転判定のみに依存し、①スマホ/タブレット撮影画像の <b>EXIF Orientation 未対応</b>、②Vision誤判定時の救済なし、という弱点があります。<b>EXIF → アスペクト比ヒューリスティック → Vision</b> の多層判定に改善します。</p>
+
+  <div class="diagram">
+    <p class="cap">図6-1. 改善後の向き補正フロー</p>
+    <pre class="mermaid">
+flowchart TD
+  A["抽出した生画像"] --> B{"EXIF Orientation<br/>あり?"}
+  B -->|"あり"| C["ImageOps.exif_transpose()<br/>で機械的に正立化(ロスレス)"]
+  B -->|"なし"| D{"極端な縦横比?<br/>(スクショが横倒し等)"}
+  C --> E["Gemini Vision で<br/>0/90/180/270 を確認"]
+  D -->|"疑いあり"| E
+  D -->|"通常"| F["回転不要と判断"]
+  E --> G{"回転角 != 0 ?"}
+  G -->|"はい"| H["PIL rotate(-角度, expand)<br/>rotation_applied 記録"]
+  G -->|"いいえ"| F
+  H --> I["EXIF除去して正規化保存<br/>→ S3 画像バケット"]
+  F --> I
+  classDef q fill:#fef3c7,stroke:#d97706,color:#7c2d12;
+  classDef a fill:#dbeafe,stroke:#2563eb,color:#0f172a;
+  class B,D,G q;
+  class C,E,H,I,F,A a;
+    </pre>
+  </div>
+
+  <div class="grid2">
+    <div>
+      <h3>改善の要点</h3>
+      <ul class="tight">
+        <li><b>EXIF優先</b>：撮影画像はまず <code>exif_transpose()</code> で確実に正立化。Visionを呼ぶ前に大半が解決。</li>
+        <li><b>アスペクト比ゲート</b>：明らかな縦長/横長のみVisionで再確認し、<b>API呼び出しと誤回転を削減</b>。</li>
+        <li><b>正規化保存</b>：補正後にEXIFを剥がして保存し、ブラウザ/OSの再回転による“二重回転”を防止。</li>
+        <li><b>監査性</b>：<code>rotation_applied</code> を保持し、誤りは再取込（reindex）で修正可能に。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>変更対象</h3>
+      <ul class="tight">
+        <li><code>services/manual_ingestion.py</code> の <code>_extract_page_images()</code> / <code>_describe_image_with_orientation()</code></li>
+        <li>DOCX/PPTX/XLSXの画像抽出経路にも同じ補正を適用（現状はPDF中心）。</li>
+        <li>依存は既存の <b>Pillow 11.2.1</b> で対応可（追加ライブラリ不要）。</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="diagram">
+    <p class="cap">図6-2. 補正の中核ロジック（実装イメージ）</p>
+<pre class="code"><span class="k">from</span> PIL <span class="k">import</span> Image, ImageOps
+
+<span class="k">def</span> normalize_orientation(blob: bytes, ext: str) -> tuple[bytes, int]:
+    img = Image.open(io.BytesIO(blob))
+    <span class="c"># ① EXIF Orientation を尊重して正立化（撮影画像に有効・ロスレス）</span>
+    img = ImageOps.exif_transpose(img)
+    applied = 0
+
+    <span class="c"># ② アスペクト比ゲート：横倒しが疑われる場合のみ Vision 確認</span>
+    w, h = img.size
+    suspect = (w / h) &gt; 1.6 <span class="k">or</span> (h / w) &gt; 1.6
+    <span class="k">if</span> suspect:
+        rotation = ask_gemini_rotation(img)   <span class="c"># 0/90/180/270</span>
+        <span class="k">if</span> rotation <span class="k">in</span> (90, 180, 270):
+            img = img.rotate(-rotation, expand=<span class="k">True</span>)
+            applied = rotation
+
+    <span class="c"># ③ EXIF を除去して正規化保存（二重回転を防止）</span>
+    buf = io.BytesIO()
+    fmt = <span class="s">"JPEG"</span> <span class="k">if</span> ext == <span class="s">"jpg"</span> <span class="k">else</span> ext.upper()
+    img.save(buf, format=fmt, **({<span class="s">"quality"</span>: 95} <span class="k">if</span> fmt==<span class="s">"JPEG"</span> <span class="k">else</span> {}))
+    <span class="k">return</span> buf.getvalue(), applied
+</pre>
+  </div>
+</section>
+
+<section id="a7">
+  <h2><span class="num">7</span>移行ステップ（推奨順）</h2>
+  <p class="lead">影響範囲が小さい順に段階移行します。各フェーズは独立して価値が出るように分割しています。</p>
+  <table>
+    <tr><th style="width:60px">Phase</th><th>内容</th><th>主な作業</th><th>完了条件</th></tr>
+    <tr>
+      <td><b>0</b></td><td>データ構造の追加</td>
+      <td>スキーマに <code>s3_uri</code>/<code>file_updated_at</code>/<code>s3_key</code>/<code>rotation_applied</code> を追加。取込時にファイル更新日を読取。</td>
+      <td>ローカルのままでも新項目が保存・表示される</td>
+    </tr>
+    <tr>
+      <td><b>1</b></td><td>画像の向き補正</td>
+      <td>EXIF＋アスペクト比＋Visionの多層化。全形式に適用。既存画像は reindex で再補正。</td>
+      <td>横向き画像が正立で表示される</td>
+    </tr>
+    <tr>
+      <td><b>2</b></td><td>S3ストレージ化</td>
+      <td>原本・抽出画像をS3へ。ダウンロードをpresigned URL化。<code>export/import-rag-data</code>で既存データ移送。</td>
+      <td>原本リンク・画像がS3経由で開ける</td>
+    </tr>
+    <tr>
+      <td><b>3</b></td><td>S3自動取込</td>
+      <td>S3イベント→SQS→取込ワーカー。<code>ingest_docs.py</code>のプッシュを廃止。DLQ・冪等化。</td>
+      <td>S3に置くだけで自動登録される</td>
+    </tr>
+    <tr>
+      <td><b>4</b></td><td>RAGのECS化</td>
+      <td>RAG API／取込ワーカー／Qdrant(EFS)をFargateへ。DynamoDBはマネージドへ。ALB配下に公開。</td>
+      <td>RAGコアがAWS上で常時稼働</td>
+    </tr>
+    <tr>
+      <td><b>5</b><span class="pill">後続</span></td><td>残りの移行</td>
+      <td>frontend / admin / Postgres(RDS) をAWSへ。監視・IaC(CDK/Terraform)整備。</td>
+      <td>全体がAWSで完結</td>
+    </tr>
+  </table>
+  <div class="callout ok">
+    <b>要望2「現状のRAGだけをECSへ」</b>は Phase 4 までで達成。Phase 0〜1 はローカルのまま先行実装でき、すぐ効果が出ます。
+  </div>
+</section>
+
+<p class="foot">支配人AI (manager-ai-1) RAG 改修設計書 — 本書は現行コード（manual_ingestion.py / schemas.py / qdrant_store.py / docker-compose.yml）の実装を基に作成しています。</p>
+
+</div>
+
+<script>
+  mermaid.initialize({
+    startOnLoad:true,
+    theme:'base',
+    themeVariables:{
+      primaryColor:'#dbeafe', primaryTextColor:'#0f172a', primaryBorderColor:'#2563eb',
+      lineColor:'#64748b', fontSize:'14px',
+      actorBkg:'#1E3A8A', actorTextColor:'#ffffff', actorBorder:'#1E3A8A',
+      signalColor:'#334155', signalTextColor:'#0f172a',
+      noteBkgColor:'#fef9c3', noteTextColor:'#713f12', noteBorderColor:'#ca8a04'
+    },
+    flowchart:{curve:'basis', useMaxWidth:true},
+    sequence:{useMaxWidth:true, wrap:true}
+  });
+</script>
+</body>
+</html>

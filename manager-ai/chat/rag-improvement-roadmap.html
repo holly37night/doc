@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>支配人AI RAG 検索精度・速度 改善ロードマップ</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.9.1/mermaid.min.js"></script>
+<style>
+  :root{
+    --navy:#1E3A8A;--blue:#2563EB;--sky:#3B82F6;--ink:#0f172a;--slate:#64748b;
+    --line:#e2e8f0;--bg:#f4f6fb;--card:#fff;--green:#059669;--amber:#d97706;
+    --red:#dc2626;--violet:#7c3aed;--chip:#eef2ff;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,sans-serif;line-height:1.7}
+  header{background:linear-gradient(135deg,var(--navy),var(--blue));color:#fff;padding:40px 32px}
+  header h1{margin:0 0 8px;font-size:25px}
+  header p{margin:0;opacity:.9;font-size:14px}
+  .wrap{max-width:1080px;margin:0 auto;padding:26px 24px 80px}
+  section{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:24px 28px;margin:22px 0;box-shadow:0 1px 3px rgba(15,23,42,.04)}
+  h2{font-size:20px;color:var(--navy);margin:0 0 6px;padding-bottom:10px;border-bottom:2px solid var(--line)}
+  h2 .num{display:inline-block;background:var(--blue);color:#fff;border-radius:8px;font-size:14px;padding:2px 10px;margin-right:10px}
+  h3{font-size:15.5px;color:var(--navy);margin:20px 0 8px}
+  p{margin:8px 0}
+  .lead{color:var(--slate);font-size:14px}
+  table{width:100%;border-collapse:collapse;margin:12px 0;font-size:13px}
+  th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+  th{background:var(--chip);color:var(--navy);font-weight:600}
+  code{background:#f1f5f9;border:1px solid #e2e8f0;border-radius:5px;padding:1px 6px;font-size:12px}
+  .tag{display:inline-block;font-size:11px;font-weight:700;border-radius:999px;padding:2px 9px;margin:1px 2px}
+  .t-spd{background:#dbeafe;color:#1e40af}
+  .t-acc{background:#dcfce7;color:#166534}
+  .t-both{background:#fef3c7;color:#92400e}
+  .imp{font-weight:700}
+  .imp.hi{color:var(--green)} .imp.mid{color:var(--amber)} .imp.lo{color:var(--slate)}
+  .callout{border-left:4px solid var(--blue);background:#eff6ff;border-radius:8px;padding:12px 16px;margin:14px 0;font-size:13.5px}
+  .callout.ok{border-color:var(--green);background:#ecfdf5}
+  .diagram{background:#fbfcfe;border:1px dashed #cbd5e1;border-radius:12px;padding:14px;margin:14px 0;overflow-x:auto}
+  .diagram .cap{font-size:12px;color:var(--slate);margin:0 0 6px;font-weight:600}
+  ul.tight{margin:8px 0;padding-left:20px}
+  ul.tight li{margin:5px 0}
+  /* quadrant */
+  .quad-wrap{position:relative;margin:26px 0 10px;padding-left:34px;padding-bottom:26px}
+  .quad{position:relative;height:440px;border-left:2px solid #94a3b8;border-bottom:2px solid #94a3b8;background:
+     linear-gradient(90deg,rgba(37,99,235,.04) 50%,rgba(5,150,105,.05) 50%),
+     linear-gradient(0deg,rgba(0,0,0,0) 50%,rgba(0,0,0,.015) 50%)}
+  .quad .qlabel{position:absolute;font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px}
+  .axis-y{position:absolute;left:-30px;top:50%;transform:rotate(-90deg) translateX(50%);transform-origin:left;font-size:12px;font-weight:700;color:#475569;white-space:nowrap}
+  .axis-x{position:absolute;bottom:-24px;left:50%;transform:translateX(-50%);font-size:12px;font-weight:700;color:#475569}
+  .chip{position:absolute;transform:translate(-50%,50%);background:#fff;border:1.5px solid;border-radius:9px;padding:5px 9px;font-size:11.5px;font-weight:600;box-shadow:0 1px 4px rgba(15,23,42,.12);max-width:170px;line-height:1.35}
+  .chip small{display:block;font-weight:500;color:#64748b;font-size:10px}
+  .c-spd{border-color:#3b82f6}.c-acc{border-color:#22c55e}.c-both{border-color:#f59e0b}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:#475569;margin-top:30px}
+  .legend span{display:inline-flex;align-items:center;gap:5px}
+  .dot{width:10px;height:10px;border-radius:3px;display:inline-block}
+  .foot{color:var(--slate);font-size:12px;text-align:center;margin-top:26px}
+  .phase{border-left:4px solid var(--blue);padding:4px 0 4px 16px;margin:14px 0}
+  .phase h3{margin:0 0 4px}
+  .pill{font-size:11px;font-weight:700;color:#fff;background:var(--slate);border-radius:6px;padding:2px 8px;margin-left:6px}
+</style>
+</head>
+<body>
+<header>
+  <h1>支配人AI RAG 検索精度・速度 改善ロードマップ</h1>
+  <p>現行の検索パイプライン実測に基づく、効果×工数で優先度づけした改善計画 — 作成日 2026-08-12</p>
+</header>
+
+<div class="wrap">
+
+<section>
+  <h2><span class="num">0</span>現状評価 ＆ 核心</h2>
+  <p class="lead">現行 <code>rag_service.retrieve()</code> はすでに高度です。以下が実装済みで、精度側は素朴な密ベクトル検索から大きく進化しています。</p>
+  <ul class="tight">
+    <li>クエリからの <b>LLMタグ生成</b>、<b>マルチクエリ拡張</b>、<b>HyDE</b>（仮説回答をドキュメント埋め込みで検索）</li>
+    <li>密ベクトル検索（タグ絞り込み＋通常＋拡張＋HyDE）＋ <b>キーワード検索の併用</b>（簡易ハイブリッド）</li>
+    <li><b>LLMリランキング</b>＋<b>フィードバック学習リランク</b>（実績係数のブレンド）</li>
+    <li>埋め込みは <code>RETRIEVAL_QUERY</code>／<code>RETRIEVAL_DOCUMENT</code> を正しく使い分け（768次元・Gemini）</li>
+  </ul>
+  <div class="callout">
+    <b>核心の診断：</b>現状は「<b>精度リッチだが往復が多く遅い</b>」。1クエリあたり Gemini へ <b>逐次で4〜5回</b>（タグ生成→拡張→HyDE→埋め込み→LLMリランク）＋ Qdrant へ複数回検索している。したがって最大の伸びしろは <b>速度</b>、精度は <b>語彙一致（型番・エラーコード）</b>と<b>評価による最適化</b>に集約される。
+  </div>
+</section>
+
+<section>
+  <h2><span class="num">1</span>効果 × 工数 マップ</h2>
+  <p class="lead">まず左上（高効果・低工数）の<b>クイックウィン</b>から。右上（高効果・高工数）は次の大玉。色は施策の種別。</p>
+  <div class="quad-wrap">
+    <div class="axis-y">効果（大 ↑）</div>
+    <div class="quad">
+      <div class="qlabel" style="top:8px;left:10px">クイックウィン</div>
+      <div class="qlabel" style="top:8px;right:10px">大玉（要投資）</div>
+      <div class="qlabel" style="bottom:8px;left:10px">おまけ</div>
+      <div class="qlabel" style="bottom:8px;right:10px">後回し</div>
+
+      <!-- High impact / low effort (top-left) -->
+      <div class="chip c-spd" style="left:20%;top:16%">前段3コールを並列/1コール統合<small>速度・逐次往復を圧縮</small></div>
+      <div class="chip c-spd" style="left:32%;top:40%">Qdrant gRPC＋ペイロードIndex<small>速度・低リスク</small></div>
+      <div class="chip c-spd" style="left:14%;top:60%">クエリ/回答キャッシュ<small>速度・繰返し質問を即答</small></div>
+
+      <!-- High impact / high effort (top-right) -->
+      <div class="chip c-both" style="left:66%;top:14%">スパースBM25ハイブリッド＋Query API(RRF)<small>精度＋速度・両取り</small></div>
+      <div class="chip c-acc" style="left:82%;top:36%">評価ハーネス(verified_qa)<small>精度・改善の土台</small></div>
+      <div class="chip c-acc" style="left:64%;top:52%">親子チャンク/手順単位分割<small>精度・手順回答が安定</small></div>
+
+      <!-- Low impact / low effort (bottom-left) -->
+      <div class="chip c-spd" style="left:16%;top:82%">回答ストリーミング<small>体感速度</small></div>
+      <div class="chip c-both" style="left:38%;top:88%">ローカルreranker/skip-LLM<small>速度・コスト減</small></div>
+
+      <!-- Low impact / high effort (bottom-right) -->
+      <div class="chip c-acc" style="left:70%;top:80%">埋め込み次元1536-3072化<small>精度・要測定</small></div>
+      <div class="chip c-acc" style="left:86%;top:66%">画像OCRテキスト付与<small>精度・スクショ対応</small></div>
+    </div>
+    <div class="axis-x">工数（小 ← → 大）</div>
+  </div>
+  <div class="legend">
+    <span><span class="dot" style="background:#3b82f6"></span>速度</span>
+    <span><span class="dot" style="background:#22c55e"></span>精度</span>
+    <span><span class="dot" style="background:#f59e0b"></span>両取り</span>
+  </div>
+</section>
+
+<section>
+  <h2><span class="num">2</span>シーケンス：現状 vs 改善</h2>
+  <div class="diagram">
+    <p class="cap">図2-1. 現状の検索フロー（Gemini往復が逐次で多い）</p>
+    <pre class="mermaid">
+sequenceDiagram
+  autonumber
+  actor U as 利用者
+  participant API as RAG API
+  participant GM as Gemini
+  participant VS as Qdrant(HTTP)
+  U->>API: 質問
+  API->>GM: ①タグ生成 (LLM)
+  GM-->>API: 検索タグ
+  API->>GM: ②クエリ拡張 (LLM)
+  GM-->>API: 拡張クエリ
+  API->>GM: ③HyDE 仮説回答 (LLM)
+  GM-->>API: 仮説回答
+  API->>GM: ④埋め込み(元+拡張+HyDE)
+  GM-->>API: ベクトル群
+  API->>VS: 密検索×複数(タグ/通常/拡張/HyDE)
+  VS-->>API: 候補
+  API->>API: キーワード検索(Python走査)
+  API->>GM: ⑤LLMリランク
+  GM-->>API: 並べ替え
+  API-->>U: 回答
+  Note over API,GM: Gemini往復が逐次で4〜5回 → レイテンシの主因
+    </pre>
+  </div>
+  <div class="diagram">
+    <p class="cap">図2-2. 改善後（前段を統合/並列、Qdrantは1リクエスト、キャッシュ短絡）</p>
+    <pre class="mermaid">
+sequenceDiagram
+  autonumber
+  actor U as 利用者
+  participant API as RAG API
+  participant C as キャッシュ
+  participant GM as Gemini
+  participant VS as Qdrant(gRPC)
+  U->>API: 質問
+  API->>C: 正規化クエリでキー照会
+  alt キャッシュヒット
+    C-->>API: 埋め込み/回答
+    API-->>U: 即答
+  else ミス
+    par 前段を1コールに統合
+      API->>GM: タグ+拡張+HyDE を1回(JSON)
+    and 埋め込みは一括
+      API->>GM: 埋め込み(batch)
+    end
+    GM-->>API: tags/expansions/hyde + ベクトル
+    API->>VS: Query API 1回(密+スパースBM25 / prefetch+RRF融合)
+    VS-->>API: 融合済み上位候補
+    API->>API: ローカルreranker(cross-encoder)
+    API->>C: 埋め込み/回答を保存
+    API-->>U: 回答(ストリーミング)
+  end
+  Note over API,VS: 往復の統合・並列化・1リクエスト化で大幅短縮
+    </pre>
+  </div>
+</section>
+
+<section>
+  <h2><span class="num">3</span>速度の改善（詳細）</h2>
+  <table>
+    <tr><th>施策</th><th>種別</th><th>効果</th><th>工数</th><th>対象コード / 内容</th></tr>
+    <tr>
+      <td>前段3コールの並列化 or 1コール統合</td><td><span class="tag t-spd">速度</span></td>
+      <td class="imp hi">大</td><td>小〜中</td>
+      <td><code>rag_service.retrieve()</code> の Step1-3。<code>asyncio.gather</code> で並列化、または <code>{tags,expansions,hyde}</code> を1回のGeminiで返す</td>
+    </tr>
+    <tr>
+      <td>Qdrant gRPC 接続</td><td><span class="tag t-spd">速度</span></td>
+      <td class="imp mid">中</td><td>小</td>
+      <td><code>qdrant_store.py</code> の <code>QdrantClient(prefer_grpc=True)</code>（現状HTTP・timeout 2.0の再接続も見直し）</td>
+    </tr>
+    <tr>
+      <td>ペイロードインデックス</td><td><span class="tag t-spd">速度</span></td>
+      <td class="imp mid">中</td><td>小</td>
+      <td><code>tags/manual_id/file_type</code> に <code>create_payload_index</code>。絞り込み検索が高速化</td>
+    </tr>
+    <tr>
+      <td>Query API で検索を1リクエスト化</td><td><span class="tag t-both">両取り</span></td>
+      <td class="imp hi">大</td><td>中</td>
+      <td>現状の複数 <code>search()</code>＋Python走査を、<code>prefetch</code>＋RRF融合の1リクエストに集約</td>
+    </tr>
+    <tr>
+      <td>クエリ埋め込み / 回答キャッシュ</td><td><span class="tag t-spd">速度</span></td>
+      <td class="imp hi">大</td><td>小〜中</td>
+      <td>正規化クエリをキーにLRU/Redis。<code>faq_generation_service</code> と連携しFAQ即答</td>
+    </tr>
+    <tr>
+      <td>リランクの軽量化</td><td><span class="tag t-both">両取り</span></td>
+      <td class="imp mid">中</td><td>中</td>
+      <td>ホットパスは <code>rerank_skip_llm</code>、または <b>bge-reranker-v2-m3</b> をローカル常駐しLLM往復を削減</td>
+    </tr>
+    <tr>
+      <td>スカラー/バイナリ量子化＋再スコア</td><td><span class="tag t-spd">速度</span></td>
+      <td class="imp lo">小(現規模)</td><td>小</td>
+      <td>件数増加時に有効。メモリ削減＆高速化、全精度ベクトルで再スコア</td>
+    </tr>
+    <tr>
+      <td>回答ストリーミング</td><td><span class="tag t-spd">速度</span></td>
+      <td class="imp mid">中(体感)</td><td>中</td>
+      <td>LLM生成をトークン逐次でUIへ。実レイテンシは同じでも体感が向上</td>
+    </tr>
+  </table>
+</section>
+
+<section>
+  <h2><span class="num">4</span>精度の改善（詳細）</h2>
+  <table>
+    <tr><th>施策</th><th>種別</th><th>効果</th><th>工数</th><th>対象コード / 内容</th></tr>
+    <tr>
+      <td>スパース(BM25/SPLADE)ハイブリッド</td><td><span class="tag t-both">両取り</span></td>
+      <td class="imp hi">大</td><td>中</td>
+      <td>Python完全一致の <code>_keyword_search</code> を Qdrantスパースベクトルに置換。型番・エラーコードの<b>語彙一致が構造的に強化</b></td>
+    </tr>
+    <tr>
+      <td>評価ハーネス（recall@k / MRR / レイテンシ）</td><td><span class="tag t-acc">精度</span></td>
+      <td class="imp hi">大(土台)</td><td>中</td>
+      <td>既存 <code>verified_qa</code> を正解データに。変更の効果を数値で計測し、K・重み・次元を根拠づけて調整</td>
+    </tr>
+    <tr>
+      <td>親子チャンク（small-to-big）/ 手順単位分割</td><td><span class="tag t-acc">精度</span></td>
+      <td class="imp hi">大</td><td>中〜大</td>
+      <td>固定 <code>800字/overlap100</code> を見出し・手順単位に。小さく検索し大きく渡す（既存 <code>section_text</code> を活用）</td>
+    </tr>
+    <tr>
+      <td>画像スクショのOCRテキスト付与</td><td><span class="tag t-acc">精度</span></td>
+      <td class="imp mid">中</td><td>小〜中</td>
+      <td>tesseract(導入済)で画像内文字を抽出しキャプションへ。ボタン名・エラー文で引っかかる</td>
+    </tr>
+    <tr>
+      <td>埋め込み次元の引き上げ（768→1536/3072）</td><td><span class="tag t-acc">精度</span></td>
+      <td class="imp lo">小〜中(要測定)</td><td>小(再取込要)</td>
+      <td>Geminiは対応。ストレージ・速度とのトレードオフを評価ハーネスで判断</td>
+    </tr>
+    <tr>
+      <td>同義語辞書の索引時活用</td><td><span class="tag t-acc">精度</span></td>
+      <td class="imp mid">中</td><td>小</td>
+      <td>既存の語彙/同義語をスパース側やクエリ拡張に反映（例: 勤怠→勤次郎/タイムカード）</td>
+    </tr>
+  </table>
+</section>
+
+<section>
+  <h2><span class="num">5</span>評価ハーネス（すべての土台）</h2>
+  <p class="lead">「精度が上がった」を数字で言えるようにする仕組み。これが無いと次元数・K・重みの調整は勘になる。既存 <code>verified_qa</code> を正解セットに使えるのが強み。</p>
+  <div class="diagram">
+    <p class="cap">図5-1. 評価ループ</p>
+    <pre class="mermaid">
+flowchart LR
+  QA[("verified_qa<br/>質問→正解マニュアル")] --> RUN["検索を実行<br/>(現行 or 改善版)"]
+  RUN --> M["指標算出<br/>recall@k / MRR / nDCG / p95レイテンシ"]
+  M --> CMP{"改善?"}
+  CMP -->|"はい"| SHIP["採用・本番反映"]
+  CMP -->|"いいえ"| TUNE["K・重み・次元・チャンクを調整"]
+  TUNE --> RUN
+  classDef s fill:#dbeafe,stroke:#2563eb,color:#0f172a;
+  classDef d fill:#eef2ff,stroke:#6366f1,color:#1e1b4b;
+  class RUN,M,SHIP,TUNE s; class QA d;
+    </pre>
+  </div>
+</section>
+
+<section>
+  <h2><span class="num">6</span>優先度つきロードマップ</h2>
+
+  <div class="phase">
+    <h3>Phase 1: クイックウィン<span class="pill">低リスク・即効</span></h3>
+    <p>前段3コールの並列化/統合、Qdrant gRPC化、ペイロードインデックス、クエリ/回答キャッシュ。<b>精度はそのままレイテンシを大幅短縮</b>。既存の検索品質を落とさず体感を最優先で改善。</p>
+  </div>
+  <div class="phase">
+    <h3>Phase 2: スパースハイブリッド化<span class="pill">精度＋速度</span></h3>
+    <p>Python完全一致検索を Qdrantスパースベクトルへ置換し、Query API の prefetch＋RRF融合で1リクエストに集約。<b>型番・エラーコードの取りこぼしを構造的に解消</b>しつつ往復も削減。</p>
+  </div>
+  <div class="phase">
+    <h3>Phase 3: 評価ハーネス<span class="pill">改善の土台</span></h3>
+    <p><code>verified_qa</code> から recall@k / MRR / レイテンシを自動計測。以降の変更はすべてこの数値で採否判断。</p>
+  </div>
+  <div class="phase">
+    <h3>Phase 4: チャンク改良・OCR・次元調整<span class="pill">精度の作り込み</span></h3>
+    <p>親子チャンク/手順単位分割、画像OCRテキスト付与、埋め込み次元の見直し。Phase 3の指標で効果を確認しながら反映。</p>
+  </div>
+
+  <div class="callout ok">
+    <b>おすすめの入り口：</b>Phase 1（クイックウィン）は既存ロジックを壊さずレイテンシだけ落とせるので最初に。次にPhase 2で語彙一致の精度を底上げ、Phase 3で計測基盤を作ってからPhase 4を数値ドリブンで進める。
+  </div>
+</section>
+
+<p class="foot">支配人AI (manager-ai-1) RAG 改善ロードマップ — 現行コード（rag_service.py / qdrant_store.py / embedding_service.py / manual_ingestion.py / verified_qa）の実装に基づく。</p>
+
+</div>
+
+<script>
+  mermaid.initialize({
+    startOnLoad:true, theme:'base',
+    themeVariables:{
+      primaryColor:'#dbeafe', primaryTextColor:'#0f172a', primaryBorderColor:'#2563eb',
+      lineColor:'#64748b', fontSize:'14px',
+      actorBkg:'#1E3A8A', actorTextColor:'#ffffff', actorBorder:'#1E3A8A',
+      signalColor:'#334155', signalTextColor:'#0f172a',
+      noteBkgColor:'#fef9c3', noteTextColor:'#713f12', noteBorderColor:'#ca8a04'
+    },
+    flowchart:{curve:'basis', useMaxWidth:true},
+    sequence:{useMaxWidth:true, wrap:true}
+  });
+</script>
+</body>
+</html>

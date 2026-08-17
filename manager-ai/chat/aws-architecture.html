@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>支配人AI — AWS構成図</title>
+<style>
+  :root{
+    --ink:#0f172a; --sub:#475569; --line:#e2e8f0; --bg:#f8fafc;
+    --new:#1d4ed8; --rag:#7c3aed; --mgd:#475569; --ext:#0f766e; --bad:#dc2626;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; padding:32px 24px 64px;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,sans-serif;
+    color:var(--ink); background:var(--bg); line-height:1.7;
+  }
+  .wrap{max-width:1760px;margin:0 auto}
+  h1{font-size:26px;margin:0 0 6px;letter-spacing:.01em}
+  .meta{color:var(--sub);font-size:13.5px;margin:0 0 28px}
+  h2{font-size:19px;margin:44px 0 14px;padding-bottom:8px;border-bottom:2px solid var(--line)}
+  h3{font-size:15.5px;margin:26px 0 10px;color:var(--sub)}
+  .card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:20px;box-shadow:0 1px 2px rgba(15,23,42,.04)}
+  .diagram{overflow-x:auto}
+  svg{display:block;min-width:1200px}
+  table{border-collapse:collapse;width:100%;font-size:13.5px;background:#fff}
+  th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top}
+  th{background:#f1f5f9;font-weight:600;white-space:nowrap}
+  td code,th code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px;background:#f1f5f9;padding:1px 5px;border-radius:4px}
+  .tag{display:inline-block;font-size:11px;font-weight:700;padding:1px 7px;border-radius:999px;vertical-align:1px}
+  .t-new{background:#dbeafe;color:#1d4ed8}
+  .t-rag{background:#ede9fe;color:#6d28d9}
+  .t-bad{background:#fee2e2;color:#b91c1c}
+  .note{font-size:13px;color:var(--sub);margin-top:10px}
+  ul{margin:8px 0 0;padding-left:22px}
+  li{margin:4px 0;font-size:13.5px}
+  .scroll-hint{font-size:12px;color:var(--sub);margin-bottom:8px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>支配人AI — AWS 構成図</h1>
+<p class="meta">
+  アカウント <code>277019134452</code> / リージョン <code>ap-northeast-1</code>（東京） ／ 2026-08-17 時点<br>
+  <span class="tag t-new">新規</span> = 今回 ECS へ移設したもの　<span class="tag t-rag">既存</span> = RAG コア（移設済み）
+</p>
+
+<div class="card diagram">
+  <p class="scroll-hint">※ 図が切れる場合は横スクロールしてください</p>
+<svg viewBox="0 0 1720 1150" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="支配人AIのAWS構成図">
+  <defs>
+    <marker id="aDark" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#1e293b"/></marker>
+    <marker id="aTeal" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#0f766e"/></marker>
+    <marker id="aRed" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#dc2626"/></marker>
+    <marker id="aGray" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#94a3b8"/></marker>
+    <style>
+      .bx{rx:8;ry:8}
+      .ttl{font:600 15px -apple-system,"Segoe UI","Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,sans-serif;fill:#0f172a}
+      .nm{font:600 13.5px -apple-system,"Segoe UI","Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,sans-serif;fill:#0f172a}
+      .sm{font:11.5px -apple-system,"Segoe UI","Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,sans-serif;fill:#64748b}
+      .lb{font:11px -apple-system,"Segoe UI","Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,sans-serif;fill:#334155}
+      .lbr{font:600 11px -apple-system,"Segoe UI","Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,sans-serif;fill:#dc2626}
+      .lbt{font:11px -apple-system,"Segoe UI","Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,sans-serif;fill:#0f766e}
+      .grp{font:600 12.5px -apple-system,"Segoe UI","Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,sans-serif;fill:#475569}
+      .flow{fill:none;stroke:#1e293b;stroke-width:1.7}
+      .eg{fill:none;stroke:#0f766e;stroke-width:1.7}
+      .bad{fill:none;stroke:#dc2626;stroke-width:1.8;stroke-dasharray:7 5}
+      .mgt{fill:none;stroke:#94a3b8;stroke-width:1.6;stroke-dasharray:5 4}
+    </style>
+  </defs>
+
+  <!-- ===== インターネット ===== -->
+  <path class="eg" d="M140,313 L25,313 L25,55 L1525,55 L1525,80" marker-end="url(#aTeal)"/>
+  <text class="grp" x="640" y="46">インターネット</text>
+
+  <rect class="bx" x="100" y="80" width="250" height="64" fill="#f0fdfa" stroke="#0f766e" stroke-width="1.6"/>
+  <text class="nm" x="120" y="106">社内PC（tyki-00730）</text>
+  <text class="sm" x="120" y="126">Global IP 182.169.72.162</text>
+
+  <rect class="bx" x="1400" y="80" width="250" height="64" fill="#f0fdfa" stroke="#0f766e" stroke-width="1.6"/>
+  <text class="nm" x="1420" y="106">Google Gemini API</text>
+  <text class="sm" x="1420" y="126">LLM / Embedding（外部SaaS）</text>
+
+  <!-- ===== AWS アカウント ===== -->
+  <rect class="bx" x="40" y="170" width="1640" height="810" fill="#ffffff" stroke="#334155" stroke-width="1.8"/>
+  <text class="ttl" x="58" y="196">AWS アカウント 277019134452 ／ ap-northeast-1</text>
+
+  <!-- ===== VPC ===== -->
+  <rect class="bx" x="60" y="215" width="1180" height="730" fill="#ecfeff" stroke="#0e7490" stroke-width="1.6"/>
+  <text class="ttl" x="78" y="240">VPC dev-hotelier-vpc（10.0.0.0/16）</text>
+
+  <!-- Public Subnet -->
+  <rect class="bx" x="80" y="265" width="1140" height="95" fill="#f0fdf4" stroke="#15803d" stroke-width="1.3" stroke-dasharray="6 4"/>
+  <text class="grp" x="95" y="283">Public Subnet　10.0.0.0/24（1a） / 10.0.1.0/24（1c）</text>
+
+  <rect class="bx" x="140" y="292" width="140" height="58" fill="#ffffff" stroke="#15803d" stroke-width="1.4"/>
+  <text class="nm" x="160" y="318">Internet GW</text>
+  <text class="sm" x="160" y="336">igw-0e84fcc1</text>
+
+  <rect class="bx" x="340" y="292" width="330" height="58" fill="#dbeafe" stroke="#1d4ed8" stroke-width="1.8"/>
+  <text class="nm" x="358" y="316">ALB dev-itssgm-alb-app　★新規</text>
+  <text class="sm" x="358" y="336">internet-facing ／ :80 :8088 :18080（SGでIP制限）</text>
+
+  <rect class="bx" x="720" y="292" width="140" height="58" fill="#ffffff" stroke="#15803d" stroke-width="1.4"/>
+  <text class="nm" x="740" y="318">NAT Gateway</text>
+  <text class="sm" x="740" y="336">nat-08db81fc</text>
+
+  <!-- Private Egress Subnet -->
+  <rect class="bx" x="80" y="400" width="1140" height="390" fill="#f0f9ff" stroke="#0369a1" stroke-width="1.3" stroke-dasharray="6 4"/>
+  <text class="grp" x="95" y="421">Private Egress Subnet　10.0.2.0/24（1a） / 10.0.3.0/24（1c）　※NAT経由で外向き通信可</text>
+
+  <!-- ECS appcore -->
+  <rect class="bx" x="100" y="440" width="440" height="290" fill="#dbeafe" stroke="#1d4ed8" stroke-width="1.8"/>
+  <text class="ttl" x="118" y="464">ECS dev-itssgm-ecs-appcore　★新規</text>
+
+  <rect class="bx" x="118" y="478" width="404" height="62" fill="#ffffff" stroke="#1d4ed8" stroke-width="1.4"/>
+  <text class="nm" x="136" y="502">frontend（nginx + Flutter Web）</text>
+  <text class="sm" x="136" y="522">dev-itssgm-ecs-web-frontend ／ Fargate :80</text>
+
+  <rect class="bx" x="118" y="556" width="404" height="62" fill="#ffffff" stroke="#1d4ed8" stroke-width="1.4"/>
+  <text class="nm" x="136" y="580">dbhub（社内DB向け MCP）</text>
+  <text class="sm" x="136" y="600">dev-itssgm-ecs-api-dbhub ／ Fargate :8080</text>
+
+  <rect class="bx" x="118" y="634" width="404" height="62" fill="#ffffff" stroke="#1d4ed8" stroke-width="1.4"/>
+  <text class="nm" x="136" y="658">admin（Laravel / PHP 8.4 + Apache）</text>
+  <text class="sm" x="136" y="678">dev-itssgm-ecs-app-admin ／ Fargate :80</text>
+
+  <!-- internal ALB -->
+  <rect class="bx" x="580" y="478" width="180" height="80" fill="#ede9fe" stroke="#7c3aed" stroke-width="1.8"/>
+  <text class="nm" x="596" y="504">ALB ragapi</text>
+  <text class="sm" x="596" y="522">dev-itssgm-alb-ragapi</text>
+  <text class="sm" x="596" y="540">internal ／ :80</text>
+
+  <!-- ECS ragcore -->
+  <rect class="bx" x="800" y="440" width="400" height="290" fill="#ede9fe" stroke="#7c3aed" stroke-width="1.8"/>
+  <text class="ttl" x="818" y="464">ECS dev-itssgm-ecs-ragcore　既存</text>
+
+  <rect class="bx" x="818" y="478" width="364" height="62" fill="#ffffff" stroke="#7c3aed" stroke-width="1.4"/>
+  <text class="nm" x="836" y="502">ragapi（FastAPI / RAG本体）</text>
+  <text class="sm" x="836" y="522">dev-itssgm-ecs-api-ragapi ／ Fargate :8000</text>
+
+  <rect class="bx" x="818" y="556" width="364" height="62" fill="#ffffff" stroke="#7c3aed" stroke-width="1.4"/>
+  <text class="nm" x="836" y="580">qdrant（ベクトルDB）</text>
+  <text class="sm" x="836" y="600">Cloud Map: qdrant.manager-ai.local :6333/:6334</text>
+
+  <rect class="bx" x="818" y="634" width="364" height="62" fill="#ffffff" stroke="#7c3aed" stroke-width="1.4"/>
+  <text class="nm" x="836" y="658">ragingest（マニュアル取込ワーカー）</text>
+  <text class="sm" x="836" y="678">dev-itssgm-ecs-job-ragingest ／ Fargate</text>
+
+  <!-- Isolated Subnet -->
+  <rect class="bx" x="80" y="820" width="540" height="105" fill="#faf5ff" stroke="#7e22ce" stroke-width="1.3" stroke-dasharray="6 4"/>
+  <text class="grp" x="95" y="838">Isolated Subnet　10.0.4.0/24 / 10.0.5.0/24　※外向き通信なし</text>
+
+  <rect class="bx" x="100" y="846" width="400" height="62" fill="#ffffff" stroke="#7e22ce" stroke-width="1.6"/>
+  <text class="nm" x="118" y="870">RDS PostgreSQL 18.3　★新規</text>
+  <text class="sm" x="118" y="890">dev-itssgm-rds-db-managerai ／ db.t4g.micro :5432</text>
+
+  <!-- ===== リージョンサービス ===== -->
+  <rect class="bx" x="1270" y="215" width="400" height="740" fill="#f8fafc" stroke="#475569" stroke-width="1.4" stroke-dasharray="6 4"/>
+  <text class="ttl" x="1288" y="240">リージョンサービス（VPC外）</text>
+
+  <rect class="bx" x="1285" y="255" width="370" height="330" fill="#ffffff" stroke="#475569" stroke-width="1.2"/>
+  <text class="grp" x="1300" y="275">データストア</text>
+
+  <rect class="bx" x="1300" y="285" width="340" height="58" fill="#f1f5f9" stroke="#475569" stroke-width="1.2"/>
+  <text class="nm" x="1316" y="308">S3　…-s3-app-manuals-…</text>
+  <text class="sm" x="1316" y="328">マニュアル原本（PDF等）</text>
+
+  <rect class="bx" x="1300" y="369" width="340" height="58" fill="#f1f5f9" stroke="#475569" stroke-width="1.2"/>
+  <text class="nm" x="1316" y="392">SQS　…-sqs-job-manualingest</text>
+  <text class="sm" x="1316" y="412">取込キュー（+ DLQ）</text>
+
+  <rect class="bx" x="1300" y="437" width="340" height="58" fill="#f1f5f9" stroke="#475569" stroke-width="1.2"/>
+  <text class="nm" x="1316" y="460">S3　…-s3-app-manualassets-…</text>
+  <text class="sm" x="1316" y="480">マニュアル画像アセット</text>
+
+  <rect class="bx" x="1300" y="505" width="340" height="58" fill="#f1f5f9" stroke="#475569" stroke-width="1.2"/>
+  <text class="nm" x="1316" y="528">DynamoDB　…-ddb-db-*</text>
+  <text class="sm" x="1316" y="548">manuals / conversations</text>
+
+  <rect class="bx" x="1285" y="615" width="370" height="330" fill="#ffffff" stroke="#475569" stroke-width="1.2"/>
+  <text class="grp" x="1300" y="635">デプロイ・運用系</text>
+
+  <rect class="bx" x="1300" y="645" width="340" height="52" fill="#f1f5f9" stroke="#475569" stroke-width="1.2"/>
+  <text class="nm" x="1316" y="666">ECR ×3　★新規</text>
+  <text class="sm" x="1316" y="685">frontend / admin / dbhub（+ 既存 ragapi）</text>
+
+  <rect class="bx" x="1300" y="705" width="340" height="52" fill="#f1f5f9" stroke="#475569" stroke-width="1.2"/>
+  <text class="nm" x="1316" y="726">CodeBuild　★新規</text>
+  <text class="sm" x="1316" y="745">dev-itssgm-cb-ci-appimages（イメージビルド）</text>
+
+  <rect class="bx" x="1300" y="765" width="340" height="52" fill="#f1f5f9" stroke="#475569" stroke-width="1.2"/>
+  <text class="nm" x="1316" y="786">S3　…-s3-app-buildsrc-…　★新規</text>
+  <text class="sm" x="1316" y="805">CodeBuild のソース置き場</text>
+
+  <rect class="bx" x="1300" y="825" width="340" height="52" fill="#f1f5f9" stroke="#475569" stroke-width="1.2"/>
+  <text class="nm" x="1316" y="846">Secrets Manager　★新規</text>
+  <text class="sm" x="1316" y="865">RDS マスターパスワード（AWS管理）</text>
+
+  <rect class="bx" x="1300" y="885" width="340" height="52" fill="#f1f5f9" stroke="#475569" stroke-width="1.2"/>
+  <text class="nm" x="1316" y="906">CloudWatch Logs</text>
+  <text class="sm" x="1316" y="925">/ecs/dev-itssgm-appcore ／ …-ragcore</text>
+
+  <!-- ===== 別VPC（未接続） ===== -->
+  <rect class="bx" x="560" y="1010" width="470" height="90" fill="#fef2f2" stroke="#dc2626" stroke-width="1.6" stroke-dasharray="7 5"/>
+  <text class="nm" x="578" y="1036">社内DB（別VPC vpc-0d510bcc / 172.31.0.0/16）</text>
+  <text class="sm" x="578" y="1056">thhtldb 172.31.68.117 ／ thwsdb 172.31.68.119</text>
+  <text class="sm" x="578" y="1074">g00851 172.31.66.133　— ピアリング無しのため到達不可</text>
+
+  <!-- ===== 凡例 ===== -->
+  <rect class="bx" x="60" y="1010" width="450" height="100" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.2"/>
+  <text class="grp" x="76" y="1032">凡例</text>
+  <line x1="78" y1="1052" x2="118" y2="1052" class="flow" marker-end="url(#aDark)"/>
+  <text class="sm" x="126" y="1056">データ経路</text>
+  <line x1="228" y1="1052" x2="268" y2="1052" class="eg" marker-end="url(#aTeal)"/>
+  <text class="sm" x="276" y="1056">インターネット出入り</text>
+  <line x1="78" y1="1080" x2="118" y2="1080" class="mgt" marker-end="url(#aGray)"/>
+  <text class="sm" x="126" y="1084">デプロイ・運用</text>
+  <line x1="228" y1="1080" x2="268" y2="1080" class="bad" marker-end="url(#aRed)"/>
+  <text class="sm" x="276" y="1084">未接続（要ネットワーク調整）</text>
+
+  <!-- ===== 接続線 ===== -->
+  <!-- PC -> IGW -->
+  <path class="eg" d="M225,144 L225,292" marker-end="url(#aTeal)"/>
+  <text class="lbt" x="234" y="200">HTTP 80 / 8088 / 18080</text>
+  <text class="lbt" x="234" y="216">（SGで送信元IP制限）</text>
+
+  <!-- IGW -> ALB app -->
+  <path class="flow" d="M280,321 L340,321" marker-end="url(#aDark)"/>
+
+  <!-- ALB app -> appcore cluster -->
+  <path class="flow" d="M505,350 L505,440" marker-end="url(#aDark)"/>
+  <text class="lb" x="515" y="390">:80→frontend</text>
+  <text class="lb" x="515" y="406">:8088→admin</text>
+  <text class="lb" x="515" y="422">:18080→dbhub</text>
+
+  <!-- NAT -> IGW -->
+  <path class="eg" d="M790,292 L790,258 L210,258 L210,292" marker-end="url(#aTeal)"/>
+
+  <!-- ragcore -> NAT -->
+  <path class="eg" d="M1000,440 L1000,380 L790,380 L790,350" marker-end="url(#aTeal)"/>
+  <text class="lbt" x="840" y="374">Gemini API / S3 / DynamoDB / SQS 等への外向き通信</text>
+
+  <!-- frontend -> internal ALB -->
+  <path class="flow" d="M522,509 L580,509" marker-end="url(#aDark)"/>
+  <text class="lb" x="524" y="500">/api /auth</text>
+
+  <!-- admin -> internal ALB -->
+  <path class="flow" d="M522,665 L620,665 L620,558" marker-end="url(#aDark)"/>
+  <text class="lb" x="628" y="620">PYTHON_API_URL</text>
+
+  <!-- internal ALB -> ragapi -->
+  <path class="flow" d="M760,509 L818,509" marker-end="url(#aDark)"/>
+  <text class="lb" x="766" y="500">:8000</text>
+
+  <!-- ragapi -> qdrant -->
+  <path class="flow" d="M900,540 L900,556" marker-end="url(#aDark)"/>
+  <text class="lb" x="700" y="552">gRPC 6334 / HTTP 6333</text>
+
+  <!-- ragingest -> qdrant -->
+  <path class="flow" d="M1100,634 L1100,618" marker-end="url(#aDark)"/>
+  <text class="lb" x="1112" y="630">ベクトル投入</text>
+
+  <!-- admin -> RDS -->
+  <path class="flow" d="M250,696 L250,846" marker-end="url(#aDark)"/>
+  <text class="lb" x="260" y="770">pgsql :5432</text>
+  <text class="lb" x="260" y="786">（マイグレーション実行済）</text>
+
+  <!-- dbhub -> 社内DB (未接続) -->
+  <path class="bad" d="M522,587 L700,587 L700,1010" marker-end="url(#aRed)"/>
+  <text class="lbr" x="710" y="880">未接続</text>
+  <text class="lbr" x="710" y="896">VPCピアリング無し</text>
+
+  <!-- ragapi -> データストア -->
+  <path class="flow" d="M1182,500 L1232,500 L1232,314 L1285,314" marker-end="url(#aDark)"/>
+  <path class="flow" d="M1232,466 L1285,466" marker-end="url(#aDark)"/>
+  <path class="flow" d="M1232,534 L1285,534" marker-end="url(#aDark)"/>
+  <text class="lb" x="1188" y="492">参照/署名付きURL</text>
+
+  <!-- ragingest -> SQS -->
+  <path class="flow" d="M1182,660 L1256,660 L1256,398 L1285,398" marker-end="url(#aDark)"/>
+  <text class="lb" x="1188" y="676">ポーリング</text>
+
+  <!-- S3 manuals -> SQS -->
+  <path class="flow" d="M1470,343 L1470,369" marker-end="url(#aDark)"/>
+  <text class="lb" x="1480" y="360">ObjectCreated:*</text>
+
+  <!-- 管理系 -->
+  <path class="mgt" d="M1220,770 L1285,770" marker-end="url(#aGray)"/>
+  <text class="sm" x="1218" y="758" text-anchor="end">全ECSタスク: イメージPull / ログ出力 / シークレット取得</text>
+</svg>
+</div>
+
+<h2>1. どこに何があるか（配置）</h2>
+<table>
+  <thead><tr><th>配置場所</th><th>リソース</th><th>役割</th></tr></thead>
+  <tbody>
+    <tr>
+      <td rowspan="3"><b>Public Subnet</b><br><code>10.0.0.0/24</code> / <code>10.0.1.0/24</code></td>
+      <td><code>dev-itssgm-alb-app</code> <span class="tag t-new">新規</span></td>
+      <td>インターネット向け ALB。社内グローバルIPからのみ受付。80/8088/18080 の3リスナー</td>
+    </tr>
+    <tr><td>Internet Gateway</td><td>ALB のインバウンドと NAT のアウトバウンドの出入口</td></tr>
+    <tr><td>NAT Gateway</td><td>Private Egress Subnet から外部（Gemini API・AWS各サービス）への出口</td></tr>
+
+    <tr>
+      <td rowspan="7"><b>Private Egress Subnet</b><br><code>10.0.2.0/24</code> / <code>10.0.3.0/24</code></td>
+      <td><code>frontend</code>（ECS appcore） <span class="tag t-new">新規</span></td>
+      <td>nginx + Flutter Web。静的配信と <code>/api</code> <code>/auth</code> のリバースプロキシ</td>
+    </tr>
+    <tr><td><code>admin</code>（ECS appcore） <span class="tag t-new">新規</span></td><td>Laravel 管理画面。評価・修正データの管理</td></tr>
+    <tr><td><code>dbhub</code>（ECS appcore） <span class="tag t-new">新規</span></td><td>社内DB を MCP 経由で読むためのゲートウェイ</td></tr>
+    <tr><td><code>dev-itssgm-alb-ragapi</code> <span class="tag t-rag">既存</span></td><td>内部 ALB。RAG API の前段</td></tr>
+    <tr><td><code>ragapi</code>（ECS ragcore） <span class="tag t-rag">既存</span></td><td>FastAPI。検索・回答生成の本体</td></tr>
+    <tr><td><code>qdrant</code>（ECS ragcore） <span class="tag t-rag">既存</span></td><td>ベクトルDB。Cloud Map <code>manager-ai.local</code> で名前解決</td></tr>
+    <tr><td><code>ragingest</code>（ECS ragcore） <span class="tag t-rag">既存</span></td><td>SQS を購読してマニュアルを取り込むワーカー</td></tr>
+
+    <tr>
+      <td><b>Isolated Subnet</b><br><code>10.0.4.0/24</code> / <code>10.0.5.0/24</code></td>
+      <td><code>dev-itssgm-rds-db-managerai</code> <span class="tag t-new">新規</span></td>
+      <td>PostgreSQL 18.3。admin の業務データ。外向き通信なしの隔離サブネット</td>
+    </tr>
+
+    <tr>
+      <td rowspan="4"><b>リージョンサービス</b><br>（VPC外・データ系）</td>
+      <td>S3 <code>…-manuals-…</code> <span class="tag t-rag">既存</span></td><td>マニュアル原本。アップロードが取込のトリガー</td>
+    </tr>
+    <tr><td>S3 <code>…-manualassets-…</code> <span class="tag t-rag">既存</span></td><td>マニュアル画像アセット</td></tr>
+    <tr><td>SQS <code>…-manualingest</code>（+DLQ） <span class="tag t-rag">既存</span></td><td>取込ジョブのキュー</td></tr>
+    <tr><td>DynamoDB <code>…-manuals</code> / <code>…-conversations</code> <span class="tag t-rag">既存</span></td><td>マニュアルのメタデータと会話履歴</td></tr>
+
+    <tr>
+      <td rowspan="5"><b>リージョンサービス</b><br>（VPC外・運用系）</td>
+      <td>ECR ×3 <span class="tag t-new">新規</span></td><td>frontend / admin / dbhub のイメージ（ragapi は既存リポジトリ）</td>
+    </tr>
+    <tr><td>CodeBuild <code>…-cb-ci-appimages</code> <span class="tag t-new">新規</span></td><td>3イメージのビルドと ECR への push</td></tr>
+    <tr><td>S3 <code>…-buildsrc-…</code> <span class="tag t-new">新規</span></td><td>CodeBuild へ渡すソース zip</td></tr>
+    <tr><td>Secrets Manager <span class="tag t-new">新規</span></td><td>RDS マスターパスワード（AWS 管理・自動生成）</td></tr>
+    <tr><td>CloudWatch Logs</td><td><code>/ecs/dev-itssgm-appcore</code> と <code>/ecs/dev-itssgm-ragcore</code></td></tr>
+
+    <tr>
+      <td><b>別VPC</b> <code>172.31.0.0/16</code></td>
+      <td>thhtldb / thwsdb / g00851 <span class="tag t-bad">未接続</span></td>
+      <td>dbhub の接続先。現VPCとピアリングが無く到達できない</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>2. 何と何がつながっているか（接続）</h2>
+
+<h3>ユーザーからの経路（データプレーン）</h3>
+<table>
+  <thead><tr><th>#</th><th>接続元</th><th>接続先</th><th>プロトコル / ポート</th><th>用途</th></tr></thead>
+  <tbody>
+    <tr><td>1</td><td>社内PC</td><td>IGW → <code>dev-itssgm-alb-app</code></td><td>HTTP 80 / 8088 / 18080</td><td>画面アクセス。ALB の SG で <code>182.169.72.162/32</code> のみ許可</td></tr>
+    <tr><td>2</td><td>ALB（:80）</td><td><code>frontend</code></td><td>HTTP 80</td><td>Flutter Web 本体の配信</td></tr>
+    <tr><td>3</td><td>ALB（:8088）</td><td><code>admin</code></td><td>HTTP 80</td><td>Laravel 管理画面</td></tr>
+    <tr><td>4</td><td>ALB（:18080）</td><td><code>dbhub</code></td><td>HTTP 8080</td><td>MCP エンドポイント <code>/mcp</code></td></tr>
+    <tr><td>5</td><td><code>frontend</code>（nginx）</td><td><code>dev-itssgm-alb-ragapi</code></td><td>HTTP 80</td><td><code>/api</code> <code>/auth</code> をRAG APIへプロキシ。ALBのIP変動に追従するため resolver + 変数 proxy_pass</td></tr>
+    <tr><td>6</td><td><code>admin</code></td><td><code>dev-itssgm-alb-ragapi</code></td><td>HTTP 80</td><td><code>PYTHON_API_URL</code>。管理画面からのAPI呼び出し</td></tr>
+    <tr><td>7</td><td>内部ALB</td><td><code>ragapi</code></td><td>HTTP 8000</td><td>ターゲットグループ経由</td></tr>
+    <tr><td>8</td><td><code>ragapi</code></td><td><code>qdrant</code></td><td>gRPC 6334 / HTTP 6333</td><td>ベクトル検索。Cloud Map <code>qdrant.manager-ai.local</code> で解決</td></tr>
+    <tr><td>9</td><td><code>ragapi</code></td><td>DynamoDB / S3 ×2</td><td>HTTPS（NAT経由）</td><td>マニュアルのメタデータ参照、原本・画像の署名付きURL発行</td></tr>
+    <tr><td>10</td><td><code>ragapi</code> / <code>ragingest</code></td><td>Google Gemini API</td><td>HTTPS（NAT → IGW）</td><td>回答生成・Embedding 生成</td></tr>
+    <tr><td>11</td><td><code>admin</code></td><td>RDS PostgreSQL</td><td>pgsql 5432</td><td>業務データ。初回起動でマイグレーション実行済み</td></tr>
+    <tr><td>12</td><td><code>dbhub</code></td><td>社内DB（別VPC）</td><td>MySQL 3306 / pgsql 5432</td><td><span class="tag t-bad">未接続</span> ピアリングが無いため到達不可</td></tr>
+  </tbody>
+</table>
+
+<h3>マニュアル取込の経路（非同期）</h3>
+<table>
+  <thead><tr><th>#</th><th>接続元</th><th>接続先</th><th>トリガー</th><th>用途</th></tr></thead>
+  <tbody>
+    <tr><td>13</td><td>S3 <code>…-manuals-…</code></td><td>SQS <code>…-manualingest</code></td><td><code>s3:ObjectCreated:*</code></td><td>マニュアルがアップロードされると取込ジョブを積む</td></tr>
+    <tr><td>14</td><td>SQS</td><td><code>ragingest</code></td><td>ポーリング</td><td>キューを購読して取込処理を実行</td></tr>
+    <tr><td>15</td><td><code>ragingest</code></td><td><code>qdrant</code> / DynamoDB / S3</td><td>—</td><td>ベクトル投入、メタデータ登録、画像アセット保存</td></tr>
+  </tbody>
+</table>
+
+<h3>デプロイ・運用の経路（コントロールプレーン）</h3>
+<table>
+  <thead><tr><th>#</th><th>接続元</th><th>接続先</th><th>用途</th></tr></thead>
+  <tbody>
+    <tr><td>16</td><td>社内PC（<code>deploy-app-ecs.ps1</code>）</td><td>S3 <code>…-buildsrc-…</code></td><td>frontend / admin / dbhub のソース zip をアップロード</td></tr>
+    <tr><td>17</td><td>CodeBuild</td><td>S3 <code>…-buildsrc-…</code> → ECR</td><td>ソースを取得してイメージをビルドし push（ローカルの Docker は不要）</td></tr>
+    <tr><td>18</td><td>全 ECS タスク（実行ロール）</td><td>ECR</td><td>コンテナイメージの Pull</td></tr>
+    <tr><td>19</td><td>全 ECS タスク</td><td>CloudWatch Logs</td><td>標準出力のログ転送</td></tr>
+    <tr><td>20</td><td><code>admin</code> の実行ロール</td><td>Secrets Manager</td><td>起動時に <code>DB_PASSWORD</code> を取得</td></tr>
+  </tbody>
+</table>
+
+<h2>3. 図から読み取れるポイント</h2>
+<div class="card">
+  <ul>
+    <li><b>frontend を同じ VPC に置いたことで、SSMトンネルが不要になりました。</b>これまでローカルPCから RAG API（内部ALB）へ届かず SSM ポートフォワードが必要でしたが、frontend が VPC 内にいるため直接到達できます。ユーザーは ALB の1つの URL を開くだけです。</li>
+    <li><b>RAG コアとアプリは別クラスタですが、ネットワークは同じ VPC です。</b>クラスタを分けたのはデプロイとスケールを独立させるためで、通信は VPC 内の内部 ALB で完結しています。</li>
+    <li><b>VPC エンドポイントは未作成です。</b>そのため S3 / DynamoDB / SQS / ECR / Secrets Manager / CloudWatch へのアクセスはすべて NAT Gateway 経由になります。通信量が増える場合は S3・DynamoDB の Gateway エンドポイント（無料）を追加すると NAT のデータ処理料金を削減できます。</li>
+    <li><b>dbhub だけが図の中で切れています。</b>接続先の社内DB は別VPC（<code>172.31.0.0/16</code>）にあり、現VPC（<code>10.0.0.0/16</code>）とのピアリングがありません。CIDR は重複していないのでピアリング自体は可能ですが、共有ネットワークの変更になるためネットワーク担当の承認が必要です。</li>
+    <li><b>参考:</b> 同アカウントに <code>dev-itssgm-lam-aimanager-to-rag</code> / <code>dev-itssgm-lam-aimanager-to-s3</code> という Lambda が2つありますが、VPC 未接続・環境変数なし・イベントソース未設定で、現在の経路には組み込まれていないため図には含めていません。</li>
+  </ul>
+</div>
+
+</div>
+</body>
+</html>

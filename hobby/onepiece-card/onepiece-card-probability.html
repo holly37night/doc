@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ワンピースカードゲーム 確率ハンドブック</title>
+<style>
+  :root{
+    color-scheme: light;
+    --page:#f9f9f7;
+    --surface:#fcfcfb;
+    --ink:#0b0b0b;
+    --ink2:#52514e;
+    --muted:#898781;
+    --grid:#e1e0d9;
+    --axis:#c3c2b7;
+    --border:rgba(11,11,11,0.10);
+    --s1:#2a78d6;        /* 先攻 / 単系列 */
+    --s2:#eb6834;        /* 後攻 */
+    --track:#cde2fb;     /* 同一ランプの淡いステップ */
+    --track2:#f0efec;
+    --good:#0ca30c;
+    --warn:#fab219;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:where(:not([data-theme="light"])){
+      color-scheme: dark;
+      --page:#0d0d0d; --surface:#1a1a19; --ink:#ffffff; --ink2:#c3c2b7;
+      --muted:#898781; --grid:#2c2c2a; --axis:#383835;
+      --border:rgba(255,255,255,0.10);
+      --s1:#3987e5; --s2:#d95926; --track:#184f95; --track2:#2c2c2a;
+    }
+  }
+  :root[data-theme="dark"]{
+    color-scheme: dark;
+    --page:#0d0d0d; --surface:#1a1a19; --ink:#ffffff; --ink2:#c3c2b7;
+    --muted:#898781; --grid:#2c2c2a; --axis:#383835;
+    --border:rgba(255,255,255,0.10);
+    --s1:#3987e5; --s2:#d95926; --track:#184f95; --track2:#2c2c2a;
+  }
+
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--page); color:var(--ink);
+    font-family: system-ui, -apple-system, "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif;
+    line-height:1.75; font-size:15.5px; letter-spacing:.01em;
+  }
+  .wrap{max-width:920px; margin:0 auto; padding:32px 20px 80px}
+
+  header.hero{padding:8px 0 4px}
+  .kicker{font-size:12.5px; letter-spacing:.14em; color:var(--muted); font-weight:600}
+  h1{font-size:30px; line-height:1.3; margin:.35em 0 .2em; letter-spacing:-.01em}
+  .lede{color:var(--ink2); max-width:62ch; margin:0}
+
+  section{background:var(--surface); border:1px solid var(--border); border-radius:14px;
+          padding:24px 24px 26px; margin:22px 0}
+  h2{font-size:19px; margin:0 0 4px; letter-spacing:-.005em}
+  h2 .num{display:inline-block; min-width:1.9em; color:var(--muted); font-weight:600}
+  h3{font-size:15.5px; margin:26px 0 6px}
+  h3:first-of-type{margin-top:14px}
+  .sub{color:var(--ink2); font-size:14px; margin:0 0 6px}
+  p{margin:.7em 0}
+  ul{margin:.6em 0; padding-left:1.25em}
+  li{margin:.3em 0}
+  strong{font-weight:650}
+  .mono{font-variant-numeric:tabular-nums}
+
+  /* ---- hero stat row ---- */
+  .tiles{display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:12px; margin:18px 0 4px}
+  .tile{background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:14px 16px}
+  .tile .lab{font-size:12.5px; color:var(--ink2); line-height:1.45}
+  .tile .val{font-size:32px; font-weight:650; margin-top:2px; line-height:1.15}
+  .tile .note{font-size:12px; color:var(--muted); margin-top:2px}
+
+  /* ---- bar chart ---- */
+  .chart{margin:14px 0 4px}
+  .legend{display:flex; gap:16px; align-items:center; font-size:13px; color:var(--ink2); margin:0 0 10px}
+  .legend span{display:inline-flex; align-items:center; gap:6px}
+  .key{width:11px; height:11px; border-radius:3px; display:inline-block}
+  .row{display:grid; grid-template-columns:78px 1fr; align-items:center; gap:10px; margin:5px 0}
+  .rlab{font-size:13px; color:var(--ink2); text-align:right; font-variant-numeric:tabular-nums}
+  .track{position:relative; background:var(--track2); border-radius:4px; height:20px}
+  .bar{position:absolute; left:0; top:0; height:100%; border-radius:0 4px 4px 0; background:var(--s1); cursor:default}
+  .bar.s2{background:var(--s2)}
+  .tip{position:absolute; left:6px; top:50%; transform:translateY(-50%); font-size:12px;
+       color:var(--ink2); font-variant-numeric:tabular-nums; white-space:nowrap}
+  .pair .track{height:13px}
+  .pair .track + .track{margin-top:2px}
+  .ticks{display:grid; grid-template-columns:78px 1fr; gap:10px; margin-top:8px}
+  .tickline{display:flex; justify-content:space-between; font-size:11.5px; color:var(--muted);
+            border-top:1px solid var(--grid); padding-top:4px; font-variant-numeric:tabular-nums}
+
+  /* ---- tables ---- */
+  .scroll{overflow-x:auto; margin:10px -4px}
+  table{border-collapse:collapse; width:100%; font-size:13.5px; font-variant-numeric:tabular-nums}
+  th,td{padding:7px 9px; text-align:right; white-space:nowrap}
+  th{color:var(--ink2); font-weight:600; font-size:12.5px; border-bottom:1px solid var(--axis)}
+  td:first-child, th:first-child{text-align:left; font-variant-numeric:normal}
+  tbody tr{border-bottom:1px solid var(--grid)}
+  tbody tr:last-child{border-bottom:none}
+  tbody tr:hover{background:color-mix(in srgb, var(--s1) 7%, transparent)}
+  td.hi{font-weight:650}
+  .cell{position:relative; z-index:0}
+  .cell .fill{position:absolute; left:0; bottom:2px; height:3px; background:var(--s1); opacity:.55; border-radius:2px; z-index:-1}
+  caption{caption-side:top; text-align:left; font-size:12.5px; color:var(--muted); padding-bottom:6px}
+
+  /* ---- callouts ---- */
+  .box{border:1px solid var(--border); border-left:3px solid var(--s1); border-radius:8px;
+       padding:12px 16px; margin:14px 0; background:color-mix(in srgb, var(--s1) 5%, transparent)}
+  .box.warn{border-left-color:var(--warn); background:color-mix(in srgb, var(--warn) 8%, transparent)}
+  .box.good{border-left-color:var(--good); background:color-mix(in srgb, var(--good) 6%, transparent)}
+  .box p{margin:.35em 0}
+  .box .t{font-weight:650; font-size:14px}
+
+  .step{display:grid; grid-template-columns:26px 1fr; gap:10px; margin:10px 0}
+  .step .n{width:24px; height:24px; border-radius:50%; background:var(--s1); color:#fff;
+           display:grid; place-items:center; font-size:13px; font-weight:650; margin-top:2px}
+  .calc{font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:13px;
+        background:var(--track2); border-radius:6px; padding:8px 12px; margin:8px 0; color:var(--ink);
+        overflow-x:auto; white-space:pre}
+
+  .grid2{display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:14px}
+  .card{border:1px solid var(--border); border-radius:10px; padding:14px 16px}
+  .card .h{font-weight:650; font-size:14px; margin-bottom:4px}
+  .card .b{font-size:13.5px; color:var(--ink2)}
+
+  footer{color:var(--muted); font-size:12.5px; margin-top:28px; line-height:1.7}
+  footer a{color:var(--ink2)}
+  .toggle{position:fixed; top:14px; right:14px; z-index:9; font-size:12px; padding:6px 11px;
+          border-radius:999px; border:1px solid var(--border); background:var(--surface);
+          color:var(--ink2); cursor:pointer}
+  @media print{ .toggle{display:none} section{break-inside:avoid} }
+</style>
+</head>
+<body>
+<button class="toggle" id="tg">◐ 表示切替</button>
+<div class="wrap">
+
+<header class="hero">
+  <div class="kicker">ONE PIECE CARD GAME</div>
+  <h1>実戦で使える確率ハンドブック</h1>
+  <p class="lede">デッキ50枚という固定ルールのおかげで、ワンピカードの確率は<strong>ほぼ暗算で出せます</strong>。
+  この1枚に、構築で使う数字・バトル中に使う数字・そして頭の中での出し方をまとめました。</p>
+
+  <div class="tiles">
+    <div class="tile"><div class="lab">デッキは常に</div><div class="val">50枚</div><div class="note">＝カード1枚は 2%ちょうど</div></div>
+    <div class="tile"><div class="lab">初手5枚で見えるのは</div><div class="val">10%</div><div class="note">デッキの1割しか見ていない</div></div>
+    <div class="tile"><div class="lab">4枚積みが初手に来る</div><div class="val">35%</div><div class="note">マリガン込みでも58%</div></div>
+    <div class="tile"><div class="lab">ドン!!が事故る確率</div><div class="val">0%</div><div class="note">毎ターン確定で増える</div></div>
+  </div>
+</header>
+
+<!-- ============ 0. ルールの前提 ============ -->
+<section>
+  <h2><span class="num">前提</span>公式ルールのおさらい</h2>
+  <p class="sub">確率の計算は、この数字の上に全部乗っています。</p>
+  <div class="grid2">
+    <div class="card">
+      <div class="h">デッキ構築</div>
+      <div class="b">リーダーカード <strong>1枚</strong>／メインデッキ <strong>ちょうど50枚</strong>／ドン!!デッキ <strong>10枚</strong>。
+      同じカード番号のカードは <strong>4枚まで</strong>。デッキにはリーダーの色に含まれる色のカードしか入りません
+      （＝同名でも番号が違えば、それぞれ4枚ずつ入る）。</div>
+    </div>
+    <div class="card">
+      <div class="h">ゲームの準備</div>
+      <div class="b">お互い <strong>5枚</strong>ドロー。<strong>マリガンは1回だけ</strong>、手札5枚すべてをデッキに戻して切り直し、改めて5枚引きます。
+      その後、リーダーのライフの値だけデッキの上からライフエリアに置きます（多くは<strong>4か5</strong>）。</div>
+    </div>
+    <div class="card">
+      <div class="h">ターンの流れ</div>
+      <div class="b">リフレッシュ → <strong>ドロー1枚</strong>（先攻1ターン目のみスキップ）→ ドン!!2枚（先攻1ターン目のみ1枚）→ メイン → エンド。</div>
+    </div>
+    <div class="card">
+      <div class="h">確率的に何が効くか</div>
+      <div class="b">デッキが<strong>必ず50枚</strong>なので分母が固定。しかも<strong>マナ役のカードが不要</strong>なので、
+      50枚すべてが「引いたら使えるカード」。つまり<strong>引ける確率＝使える確率</strong>になります。</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 1. 構築編 メイン表 ============ -->
+<section>
+  <h2><span class="num">1</span>デッキ構築：何枚積めば、いつ来るのか</h2>
+  <p class="sub">50枚デッキで、そのカードを1枚以上引けている確率。追加ドロー効果は含みません。</p>
+
+  <h3>まずは初手5枚だけ見る</h3>
+  <div class="chart">
+    <div id="c1"></div>
+    <div class="ticks"><div></div><div class="tickline"><span>0%</span><span>25%</span><span>50%</span><span>75%</span><span>100%</span></div></div>
+  </div>
+  <div class="box">
+    <p class="t">ここが一番大事な結論</p>
+    <p>4枚積みでも初手に来るのは<strong>3回に1回</strong>。「絶対に初手にあってほしいカード」は、1種類4枚では作れません。
+    だから強いデッキは<strong>「同じ役割のカードを束ねて枚数を稼ぐ」</strong>という発想になります。</p>
+  </div>
+
+  <h3>ターンが進むとどうなるか（先攻・後攻）</h3>
+  <p class="sub"><strong>4枚積みのカード</strong>が、そのターンのメインフェイズ時点で手札にある確率。
+  先攻は1ターン目にドローしないので、最後まで後攻より1枚ぶん遅れ続けます。</p>
+  <div class="chart">
+    <div class="legend">
+      <span><i class="key" style="background:var(--s1)"></i>先攻</span>
+      <span><i class="key" style="background:var(--s2)"></i>後攻</span>
+    </div>
+    <div id="c2" class="pair"></div>
+    <div class="ticks"><div></div><div class="tickline"><span>0%</span><span>25%</span><span>50%</span><span>75%</span><span>100%</span></div></div>
+  </div>
+
+  <h3>全部入りの早見表</h3>
+  <div class="scroll">
+  <table id="t1">
+    <caption>50枚デッキ／1枚以上引けている確率（%）</caption>
+    <thead><tr>
+      <th>採用枚数</th><th>先1T<br>(5枚)</th><th>後1T・先2T<br>(6枚)</th><th>後2T・先3T<br>(7枚)</th>
+      <th>後3T・先4T<br>(8枚)</th><th>後4T・先5T<br>(9枚)</th><th>後5T<br>(10枚)</th>
+    </tr></thead>
+    <tbody></tbody>
+  </table>
+  </div>
+</section>
+
+<!-- ============ 2. マリガン ============ -->
+<section>
+  <h2><span class="num">2</span>マリガンは「もう一回サイコロを振る」</h2>
+  <p class="sub">全部戻して引き直すルールなので、1回目と2回目は完全に独立。外す確率を2回かけるだけです。</p>
+
+  <div class="scroll">
+  <table id="t2">
+    <caption>初手5枚／マリガンを使う前提での命中率</caption>
+    <thead><tr><th>採用枚数</th><th>マリガン無し</th><th>マリガン込み</th><th>伸び</th></tr></thead>
+    <tbody></tbody>
+  </table>
+  </div>
+
+  <div class="box good">
+    <p class="t">覚え方：マリガンは命中率を「約1.6倍」にする</p>
+    <p>3〜6枚積みの帯なら、マリガンありの命中率はだいたい<strong>1.5〜1.8倍</strong>。
+    4枚積みの35%が58%になる、と体で覚えておけば十分です。</p>
+  </div>
+  <p>逆に言うと、キープ基準は「今の手札の点数」ではなく<strong>「引き直したときの期待値」</strong>で考えるのが正解。
+  キーカードが4枚積みなら、引き直しても来る確率は35%しかありません。<strong>中途半端な手札でも、動ける手札ならキープ</strong>が基本になります。</p>
+</section>
+
+<!-- ============ 3. 逆引き ============ -->
+<section>
+  <h2><span class="num">3</span>逆引き：欲しい確率から枚数を決める</h2>
+  <p class="sub">「この動きを初手で通したい」から逆算するための表。<strong>実質枚数</strong>＝そのカード＋同じ役割の代替カード＋サーチカードの合計で数えます。</p>
+
+  <div class="scroll">
+  <table id="t3">
+    <caption>初手5枚で目標の確率に届く「実質枚数」</caption>
+    <thead><tr><th>初手で欲しい確率</th><th>マリガン無しなら</th><th>マリガン込みなら</th></tr></thead>
+    <tbody></tbody>
+  </table>
+  </div>
+
+  <div class="box">
+    <p class="t">実戦での目安</p>
+    <p>・<strong>毎回やりたい初動</strong>：実質<strong>8〜10枚</strong>（マリガン込みで84〜90%）<br>
+    ・<strong>だいたい引きたい</strong>：実質<strong>6枚</strong>（同74%）<br>
+    ・<strong>引けたら嬉しい切り札</strong>：<strong>1〜2枚</strong>で十分。4枚積んでも初手35%にしかならないので、
+    「初手用」ではなく「ゲーム中に来ればいい枠」と割り切る。</p>
+  </div>
+</section>
+
+<!-- ============ 4. コンボと事故 ============ -->
+<section>
+  <h2><span class="num">4</span>2枚コンボと、被り事故</h2>
+
+  <h3>2枚揃えるのは想像よりずっと難しい</h3>
+  <div class="scroll">
+  <table id="t4">
+    <caption>Aを4枚・Bを4枚積んだとき、両方が手札にある確率</caption>
+    <thead><tr><th>見ている枚数</th><th>4枚 &amp; 4枚</th><th>4枚 &amp; 2枚</th><th>3枚 &amp; 3枚</th></tr></thead>
+    <tbody></tbody>
+  </table>
+  </div>
+  <div class="box warn">
+    <p class="t">4枚＋4枚のコンボでも、初手で揃うのは約11%</p>
+    <p>10枚見て（後攻5ターン目相当）ようやく35%。<strong>「2枚コンボはデッキの主軸にしない」</strong>か、
+    <strong>サーチで実質枚数を稼ぐ</strong>かの二択になります。</p>
+  </div>
+
+  <h3>逆に、被り事故はほとんど起きない</h3>
+  <div class="scroll">
+  <table id="t5">
+    <caption>初手5枚で、同じカードを2枚以上・3枚以上引いてしまう確率</caption>
+    <thead><tr><th>採用枚数</th><th>1枚以上</th><th>2枚以上</th><th>3枚以上</th></tr></thead>
+    <tbody></tbody>
+  </table>
+  </div>
+  <p>4枚積みが初手でダブるのは<strong>わずか4.5%</strong>。「4枚積むとダブって事故る」はほぼ気のせいです。
+  一方で、同じ役割の枠を12枚まで膨らませると初手ダブりが35%になるので、<strong>枠を膨らませすぎたときだけ</strong>ダブりを気にすれば十分。</p>
+</section>
+
+<!-- ============ 5. バトル中 ============ -->
+<section>
+  <h2><span class="num">5</span>バトル中に使う確率</h2>
+
+  <h3>ドン!!は確率ではない ── 唯一の「確定情報」</h3>
+  <div class="scroll">
+  <table>
+    <caption>場に置けるドン!!の枚数（最大10枚）</caption>
+    <thead><tr><th></th><th>1T</th><th>2T</th><th>3T</th><th>4T</th><th>5T</th><th>6T</th></tr></thead>
+    <tbody>
+      <tr><td>先攻</td><td>1</td><td>3</td><td>5</td><td>7</td><td>9</td><td>10</td></tr>
+      <tr><td>後攻</td><td>2</td><td>4</td><td>6</td><td>8</td><td>10</td><td>10</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>他のTCGと違って<strong>マナ事故が構造的に存在しません</strong>。だから相手のコスト帯を読むのに確率は不要で、
+  「相手は今このターン、最大何コストまで出せるか」は常に確定。<strong>確率を使うべきなのは手札の中身の推測だけ</strong>です。</p>
+
+  <h3>自分のライフに埋まっている確率</h3>
+  <p class="sub">ライフはデッキの上から取るので、キーカードがライフに沈むことがあります。ライフ5＝デッキの10%がライフの中。</p>
+  <div class="scroll">
+  <table id="t6">
+    <caption>そのカードが1枚以上ライフに埋まっている確率</caption>
+    <thead><tr><th>採用枚数</th><th>ライフ5のリーダー</th><th>ライフ4のリーダー</th></tr></thead>
+    <tbody></tbody>
+  </table>
+  </div>
+  <p><strong>トリガー持ちを積む価値はここ</strong>にあります。トリガー枠を8枚積めば、ライフ5のうち少なくとも1枚がトリガーである確率は約60%。
+  ライフを取られること自体が「およそ2回に1回以上リターンがある行動」に変わります。</p>
+
+  <h3>相手の手札にカウンターがあるか</h3>
+  <p class="sub">相手が4枚積みのカウンターイベントを持っている確率のざっくり目安。実際は相手が引いた枚数や捨てた枚数で動くので、あくまで判断の土台です。</p>
+  <div class="scroll">
+  <table id="t7">
+    <caption>相手の手札枚数別／特定カードを1枚以上持っている確率</caption>
+    <thead><tr><th>相手の手札</th><th>2枚積み</th><th>3枚積み</th><th>4枚積み</th></tr></thead>
+    <tbody></tbody>
+  </table>
+  </div>
+  <div class="box">
+    <p class="t">アタック判断への落とし込み</p>
+    <p>相手の手札が5枚のとき、4枚積みの特定カウンターを持っている確率は<strong>約35%</strong>。
+    つまり<strong>3回に2回は通る</strong>。「持たれていたら負ける」ではなく<strong>「3分の1を踏むかどうか」</strong>で判断すると、
+    アタックが不必要に慎重になりません。<br>
+    ただしカウンター値（1000/2000）は<strong>ほぼ全てのキャラが持っている</strong>ので、これは確率ではなく
+    「相手の手札枚数 × 平均1000〜2000」の<strong>足し算</strong>で見積もります。</p>
+  </div>
+
+  <h3>サーチ効果の実力</h3>
+  <div class="scroll">
+  <table id="t8">
+    <caption>残り約40枚のデッキの上5枚／上3枚を見たときの命中率</caption>
+    <thead><tr><th>採用枚数</th><th>上5枚を見る</th><th>上3枚を見る</th></tr></thead>
+    <tbody></tbody>
+  </table>
+  </div>
+  <p>4枚積みカードを「上5枚サーチ」で拾える確率は約43%。<strong>サーチ1枚＝そのカードを約2枚ぶん増やしたのと同じくらいの効果</strong>
+  （4枚→実質6〜7枚相当）というのが、構築で枚数を数えるときの現実的な換算です。</p>
+</section>
+
+<!-- ============ 6. 暗算 ============ -->
+<section>
+  <h2><span class="num">6</span>頭の中で出す ── 実戦用の暗算法</h2>
+  <p class="sub">表を覚えなくても、この4つのやり方で対戦中に3秒で出せます。</p>
+
+  <h3>① まず「1枚＝2%」から始める</h3>
+  <p>デッキが必ず50枚なので、<strong>カード1枚はきっちり2%</strong>。ここが全ての土台です。</p>
+  <div class="calc">見る枚数 × 採用枚数 × 2% ＝ 手札に来る「平均枚数」（%表示）
+
+例）4枚積み・初手5枚 → 5 × 4 × 2% ＝ 40%</div>
+  <p>この数字が<strong>30%以下ならそのまま確率として使えます</strong>（誤差2ポイント以内）。
+  30%を超えたら「2枚以上引く」ぶんの重複が出るので、少し多めに出てしまいます。そこで②へ。</p>
+
+  <h3>② 本命：「外す確率」をかけ算する</h3>
+  <div class="step"><div class="n">1</div><div><strong>まだ見ていない割合を出す。</strong>
+    5枚見た＝90%、6枚＝88%、10枚＝80%、15枚＝70%。（見た枚数の2倍を100から引くだけ）</div></div>
+  <div class="step"><div class="n">2</div><div><strong>それを採用枚数のぶんだけかける。</strong>2乗ずつ進めると楽です。</div></div>
+  <div class="step"><div class="n">3</div><div><strong>100から引く。</strong></div></div>
+  <div class="calc">例）4枚積み・初手5枚
+  90% × 90% ＝ 81%
+  81% × 81% ＝ 66%   ← 4枚とも外す確率
+  100 − 66 ＝ 34%    （正解 35.3%）
+
+例）8枚積み・10枚見た
+  80% → 64% → 41% → 17%（8乗）
+  100 − 17 ＝ 83%    （正解 85.7%）</div>
+  <div class="box good">
+    <p class="t">0.9の累乗だけ覚えれば初手はすべて出せる</p>
+    <p><span class="mono">90 → 81 → 73 → 66 → 59 → 53 → 48 → 43</span><br>
+    上から「1枚積み・2枚積み…8枚積み」で<strong>外す確率</strong>。100から引けば命中率です。
+    この方法は実際よりわずかに低めに出るので、<strong>常に安全側</strong>に判断できます。</p>
+  </div>
+
+  <h3>③ マリガンは「2回かける」</h3>
+  <div class="calc">外す確率 × 外す確率 ＝ 2回とも外す確率
+
+例）4枚積み → 外す65% → 0.65 × 0.65 ≒ 42% → 命中 58%</div>
+  <p>とっさに出ないときは<strong>「マリガンありなら約1.6倍」</strong>で十分です。</p>
+
+  <h3>④ 「1ターン待つ ＝ 1枚多く積む」</h3>
+  <p>これが一番使える近似。ドロー1回ぶんの効果は、<strong>そのカードを1枚多く採用したのとほぼ同じ</strong>です。</p>
+  <div class="calc">4枚積み・初手5枚 …… 35.3%
+5枚積み・初手5枚 …… 42.3%
+4枚積み・6枚見た …… 41.1%  ← ほぼ同じ！</div>
+  <p>なので「4枚積みが3ターン目までに来る確率」は、頭の中で<strong>「6枚積みの初手命中率」</strong>＝約48%と読み替えられます。</p>
+
+  <h3>⑤ 2枚コンボは「かけ算」でいい</h3>
+  <div class="calc">Aが来る確率 × Bが来る確率 ≒ 両方来る確率
+
+例）4枚 × 4枚・初手 → 35% × 35% ≒ 12%（正解 10.8%）</div>
+  <p>ほんの少し高めに出ますが、判断には十分。<strong>「35%のことを2つ同時に要求すると1割になる」</strong>という感覚だけ持っておけば、
+  デッキの主軸を2枚コンボにしない判断ができます。</p>
+
+  <div class="box warn">
+    <p class="t">暗算の精度の目安</p>
+    <p>②のかけ算法は、実際の値より<strong>0〜3ポイント低め</strong>に出ます（採用枚数が多いほど差が開く）。
+    実戦の判断は「35%か38%か」では変わらないので、この精度で問題ありません。
+    デッキを最終調整するときだけ、下の早見表の正確な数字を使ってください。</p>
+  </div>
+</section>
+
+<!-- ============ 7. まとめ ============ -->
+<section>
+  <h2><span class="num">7</span>これだけ覚えて帰る</h2>
+  <div class="grid2">
+    <div class="card"><div class="h">1枚 ＝ 2%</div><div class="b">デッキが必ず50枚だから。すべての暗算の出発点。</div></div>
+    <div class="card"><div class="h">初手はデッキの10%</div><div class="b">5枚しか見ていない。ここを過信しない。</div></div>
+    <div class="card"><div class="h">4枚積み → 35% / 58%</div><div class="b">マリガン無し / 込み。この2つの数字だけは丸暗記の価値あり。</div></div>
+    <div class="card"><div class="h">毎回やりたい初動は実質8〜10枚</div><div class="b">同じ役割のカード＋サーチを合算して数える。</div></div>
+    <div class="card"><div class="h">サーチ1枚 ≒ 本体2枚ぶん</div><div class="b">上5枚を見るタイプの目安。枚数換算で構築が組みやすくなる。</div></div>
+    <div class="card"><div class="h">1ターン待つ ＝ 1枚多く積む</div><div class="b">ターン数と採用枚数を同じ物差しで扱える。</div></div>
+    <div class="card"><div class="h">2枚コンボは初手11%</div><div class="b">4枚＋4枚でもこの程度。主軸にしないか、サーチで支える。</div></div>
+    <div class="card"><div class="h">ドン!!は確定</div><div class="b">相手の出せるコストは常に読み切れる。確率を使うのは手札の推測だけ。</div></div>
+  </div>
+</section>
+
+<footer>
+  <p>数値は超幾何分布による厳密計算（メインデッキ50枚、追加ドロー・サーチ効果を除く）。
+  相手の手札推測の表は、相手の手札がデッキからランダムに引かれたものと仮定した簡略値です。<br>
+  ルールの出典：<a href="https://en.onepiece-cardgame.com/pdf/rule_manual.pdf">ONE PIECE CARD GAME 公式ルールマニュアル</a>／
+  <a href="https://en.onepiece-cardgame.com/play-guide/">公式プレイガイド</a></p>
+</footer>
+
+</div>
+
+<script>
+/* ---------- 厳密計算（超幾何分布） ---------- */
+const C = (() => {
+  const memo = new Map();
+  return function c(n, k){
+    if (k < 0 || k > n) return 0;
+    if (k === 0 || k === n) return 1;
+    const key = n + ',' + k;
+    if (memo.has(key)) return memo.get(key);
+    const v = c(n-1, k-1) + c(n-1, k);
+    memo.set(key, v);
+    return v;
+  };
+})();
+function atLeast(K, n, t = 1, N = 50){
+  if (n > N) n = N;
+  let s = 0;
+  const top = Math.min(K, n);
+  for (let i = t; i <= top; i++) s += C(K, i) * C(N - K, n - i);
+  return s / C(N, n);
+}
+function both(KA, KB, n, N = 50){
+  const pA = C(N-KA, n)/C(N, n), pB = C(N-KB, n)/C(N, n);
+  const pAB = (N-KA-KB >= n) ? C(N-KA-KB, n)/C(N, n) : 0;
+  return 1 - pA - pB + pAB;
+}
+const pct = v => (v*100).toFixed(1);
+const pct0 = v => Math.round(v*100);
+
+/* ---------- 横棒チャート ---------- */
+function bars(el, rows){
+  el.innerHTML = rows.map(r => {
+    const w = r.value * 100;
+    // ラベルはバーが十分長ければ内側の端、短ければバーの外側に置く（クリップさせない）
+    const pos = w > 18
+      ? `left:auto; right:calc(${(100-w).toFixed(1)}% + 8px); color:#fff;`
+      : `left:calc(${w.toFixed(1)}% + 8px);`;
+    return `
+    <div class="row">
+      <div class="rlab">${r.label}</div>
+      <div class="track" title="${r.title}">
+        <div class="bar" style="width:${Math.max(w,0.6)}%"></div>
+        <div class="tip" style="${pos}">${pct(r.value)}%</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+function barsPair(el, rows){
+  el.innerHTML = rows.map(r => `
+    <div class="row">
+      <div class="rlab">${r.label}</div>
+      <div style="position:relative">
+        <div class="track" title="先攻 ${pct(r.a)}%"><div class="bar" style="width:${r.a*100}%"></div></div>
+        <div class="track" title="後攻 ${pct(r.b)}%"><div class="bar s2" style="width:${r.b*100}%"></div></div>
+        <div class="tip" style="left:auto; right:8px">先 ${pct0(r.a)}% ／ 後 ${pct0(r.b)}%</div>
+      </div>
+    </div>`).join('');
+}
+
+/* ---------- チャート1：初手5枚 ---------- */
+bars(document.getElementById('c1'),
+  [1,2,3,4,5,6,8,10,12,16].map(K => ({
+    label: K + '枚積み',
+    value: atLeast(K,5),
+    title: `${K}枚積み：初手5枚で1枚以上引ける確率 ${pct(atLeast(K,5))}%`
+  })));
+
+/* ---------- チャート2：先攻/後攻 ---------- */
+/* 先攻 T番目に見ている枚数 = 4 + T（T1は5枚, T2は6枚…） */
+barsPair(document.getElementById('c2'),
+  [1,2,3,4,5].map(T => ({
+    label: T + 'ターン目',
+    a: atLeast(4, 4 + T),
+    b: atLeast(4, 5 + T)
+  })));
+
+/* ---------- 表 ---------- */
+function fillTable(id, rows){
+  const tb = document.querySelector('#' + id + ' tbody');
+  tb.innerHTML = rows.map(r => '<tr>' + r.map((c,i) =>
+    i === 0 ? `<td>${c}</td>` : `<td class="cell">${c.txt}${c.v!=null?`<span class="fill" style="width:${c.v*100}%"></span>`:''}</td>`
+  ).join('') + '</tr>').join('');
+}
+const cell = v => ({txt: pct(v) + '%', v});
+
+/* T1: メイン早見表 */
+fillTable('t1', [1,2,3,4,5,6,8,10,12,16,20].map(K =>
+  [K + '枚', ...[5,6,7,8,9,10].map(m => cell(atLeast(K,m)))]));
+
+/* T2: マリガン */
+fillTable('t2', [1,2,3,4,5,6,7,8,10,12].map(K => {
+  const p = atLeast(K,5), q = 1 - (1-p)**2;
+  return [K + '枚', cell(p), cell(q), {txt: '×' + (q/p).toFixed(2), v: null}];
+}));
+
+/* T3: 逆引き */
+(() => {
+  const targets = [0.4,0.5,0.6,0.7,0.8,0.9];
+  const rows = targets.map(t => {
+    let a = null, b = null;
+    for (let K = 1; K <= 50; K++){ if (a===null && atLeast(K,5) >= t) a = K; }
+    for (let K = 1; K <= 50; K++){ const p = atLeast(K,5); if (b===null && 1-(1-p)**2 >= t) b = K; }
+    return [Math.round(t*100) + '%',
+      {txt: a + '枚', v:null},
+      {txt: b + '枚', v:null}];
+  });
+  fillTable('t3', rows);
+})();
+
+/* T4: コンボ */
+fillTable('t4', [5,6,7,8,10,12,15].map(m =>
+  [m + '枚見た時点', cell(both(4,4,m)), cell(both(4,2,m)), cell(both(3,3,m))]));
+
+/* T5: ダブり */
+fillTable('t5', [2,3,4,6,8,10,12].map(K =>
+  [K + '枚', cell(atLeast(K,5,1)), cell(atLeast(K,5,2)), cell(atLeast(K,5,3))]));
+
+/* T6: ライフ */
+fillTable('t6', [1,2,3,4,6,8,10].map(K =>
+  [K + '枚', cell(atLeast(K,5)), cell(atLeast(K,4))]));
+
+/* T7: 相手の手札 */
+fillTable('t7', [3,4,5,6,7,8].map(H =>
+  [H + '枚', cell(atLeast(2,H)), cell(atLeast(3,H)), cell(atLeast(4,H))]));
+
+/* T8: サーチ */
+fillTable('t8', [1,2,3,4,6,8].map(K =>
+  [K + '枚', cell(atLeast(K,5,1,40)), cell(atLeast(K,3,1,40))]));
+
+/* ---------- テーマ切替 ---------- */
+document.getElementById('tg').addEventListener('click', () => {
+  const cur = document.documentElement.getAttribute('data-theme');
+  const dark = cur ? cur === 'dark'
+    : matchMedia('(prefers-color-scheme: dark)').matches;
+  document.documentElement.setAttribute('data-theme', dark ? 'light' : 'dark');
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,642 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>AWSネットワーク基礎</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=JetBrains+Mono:wght@400;600&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap">
+<style>
+/* Layout: 1カラムの教科書。章ごとに「説明 → 図 → 表 → ポイント」の順。図は設計図風の細線＋サブネット色分け */
+:root{
+  --bg:#f3f6f7; --surface:#ffffff; --fg:#14212b; --muted:#56656f; --line:#d2dbe0;
+  --accent:#0a7a74; --amber:#b86200; --bad:#c23a3a;
+  --pub:#2c8a44; --pri:#2a6cb0; --db:#7a4db3; --vpc:#3d4f60;
+  --f-display:"Dela Gothic One","Zen Kaku Gothic New","Hiragino Kaku Gothic ProN",sans-serif;
+  --f-body:"Zen Kaku Gothic New","Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0e151a; --surface:#16212a; --fg:#e2e9ee; --muted:#98a7b2; --line:#2b3a46;
+  --accent:#3dbfb6; --amber:#f0a145; --bad:#ef6b6b;
+  --pub:#5cc278; --pri:#6ba8e8; --db:#b18de2; --vpc:#9fb2c2; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0e151a; --surface:#16212a; --fg:#e2e9ee; --muted:#98a7b2; --line:#2b3a46;
+  --accent:#3dbfb6; --amber:#f0a145; --bad:#ef6b6b;
+  --pub:#5cc278; --pri:#6ba8e8; --db:#b18de2; --vpc:#9fb2c2; color-scheme:dark}
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:16px;line-height:1.8;padding-inline:16px;padding-block:0 64px}
+.wrap{max-width:980px;margin:0 auto}
+code,.mono{font-family:var(--f-mono);font-size:.92em}
+code{background:color-mix(in srgb,var(--accent) 10%,transparent);padding:.05em .35em;border-radius:4px}
+h1,h2,h3{text-wrap:balance;line-height:1.35;margin:0}
+p{margin:0;max-width:68ch}
+a{color:var(--accent)}
+
+/* hero */
+header{padding-block:48px 28px;border-bottom:1px solid var(--line)}
+.eyebrow{font-size:12px;letter-spacing:.14em;color:var(--accent);font-weight:700}
+h1{font-family:var(--f-display);font-weight:400;font-size:clamp(30px,6vw,48px);margin-top:8px}
+.sub{color:var(--muted);margin-top:6px}
+.mnemonic{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:24px}
+.mnemonic span.step{background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:4px 14px;font-weight:700}
+.mnemonic .arr{color:var(--muted)}
+nav.toc{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:6px 20px;margin-top:28px;font-size:14px}
+nav.toc a{color:var(--fg);text-decoration:none;display:flex;gap:10px;padding:4px 0;border-bottom:1px dashed var(--line)}
+nav.toc a:hover,nav.toc a:focus-visible{color:var(--accent)}
+nav.toc b{font-family:var(--f-mono);color:var(--accent);font-weight:600;min-width:2.2em}
+
+/* chapters */
+section.ch{padding-block:48px 8px;display:grid;gap:20px}
+.chhead{display:flex;gap:16px;align-items:baseline}
+.chno{font-family:var(--f-display);font-size:36px;color:var(--accent);line-height:1}
+h2{font-size:clamp(22px,3.6vw,28px);font-weight:700}
+.chhead small{display:block;color:var(--muted);font-size:13px;font-weight:500;letter-spacing:.04em}
+h3{font-size:18px;font-weight:700;margin-top:8px}
+
+figure{margin:0;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:20px}
+figcaption{color:var(--muted);font-size:13px;margin-top:12px;line-height:1.6}
+.scroll{overflow-x:auto}
+svg.dg{display:block;width:100%;height:auto;color:var(--fg);font-family:var(--f-body)}
+svg.dg.w{min-width:600px}
+
+.note{font-size:14px;color:var(--muted);border-left:3px solid var(--line);padding-left:12px;max-width:72ch}
+.point{background:color-mix(in srgb,var(--accent) 9%,var(--surface));border:1px solid color-mix(in srgb,var(--accent) 35%,var(--line));border-radius:10px;padding:14px 18px;font-size:15px}
+.point b{color:var(--accent)}
+
+/* tables */
+.tbl{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:14.5px;line-height:1.6}
+th,td{padding:10px 14px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
+tr:last-child td{border-bottom:0}
+th{font-size:12px;letter-spacing:.08em;color:var(--muted);font-weight:700;background:color-mix(in srgb,var(--fg) 3%,var(--surface));white-space:nowrap}
+td.mono,td .mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+td.num{text-align:right;font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+tr.hit td{background:color-mix(in srgb,var(--accent) 12%,var(--surface))}
+.tag{display:inline-block;font-size:12px;font-weight:700;padding:1px 8px;border-radius:999px;border:1px solid currentColor;white-space:nowrap}
+.ok{color:var(--accent)} .ng{color:var(--bad)} .warn{color:var(--amber)}
+
+/* flows */
+.flow{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.flow .n{background:var(--surface);border:1.5px solid var(--line);border-radius:8px;padding:6px 12px;font-weight:700;font-size:14px;line-height:1.35;text-align:center}
+.flow .n small{display:block;font-weight:400;color:var(--muted);font-size:11.5px}
+.flow .n.hl{border-color:var(--accent);color:var(--accent)}
+.flow .n.am{border-color:var(--amber);color:var(--amber)}
+.flow .a{color:var(--muted);font-family:var(--f-mono)}
+.vflow{display:grid;gap:0;max-width:560px}
+.vflow .row{display:grid;grid-template-columns:minmax(0,190px) minmax(0,1fr);gap:16px;align-items:center}
+.vflow .n{background:var(--surface);border:1.5px solid var(--line);border-radius:8px;padding:8px 12px;font-weight:700;text-align:center}
+.vflow .d{font-size:13.5px;color:var(--muted)}
+.vflow .down{grid-column:1;text-align:center;color:var(--muted);line-height:1.4;padding:2px 0}
+
+/* bits */
+.bits{display:grid;grid-template-columns:repeat(8,minmax(28px,1fr));gap:3px;font-family:var(--f-mono);text-align:center;max-width:420px}
+.bits div{border:1px solid var(--line);border-radius:4px;padding:3px 0;font-size:14px;background:var(--surface)}
+.bits .w{border:0;background:none;color:var(--muted);font-size:11px}
+.bits .on{background:color-mix(in srgb,var(--accent) 18%,var(--surface));border-color:var(--accent);font-weight:600}
+.bitrow{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:20px}
+.bitrow h4{margin:0 0 6px;font-size:14px}
+.bitrow h4 .mono{color:var(--accent)}
+.addr32{display:flex;flex-wrap:wrap;gap:6px;font-family:var(--f-mono);font-size:13px}
+.addr32 .oct{display:flex;gap:1px}
+.addr32 .oct i{font-style:normal;width:15px;text-align:center;border-radius:2px;padding:2px 0}
+.addr32 .netp{background:color-mix(in srgb,var(--pri) 22%,var(--surface))}
+.addr32 .hostp{background:color-mix(in srgb,var(--amber) 22%,var(--surface))}
+.legend{display:flex;flex-wrap:wrap;gap:14px;font-size:13px;color:var(--muted);margin-top:10px}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-1px;margin-right:6px}
+.bar{height:10px;border-radius:5px;background:var(--accent);min-width:3px}
+
+/* cards */
+.grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px 18px;display:grid;gap:8px;align-content:start;min-width:0}
+.card h3{margin:0;font-size:16px}
+.card p{font-size:14.5px}
+.card .k{font-family:var(--f-mono);font-size:12px;color:var(--accent);letter-spacing:.06em;font-weight:600}
+
+/* svg classes */
+.s-vpc{fill:color-mix(in srgb,var(--vpc) 5%,var(--surface));stroke:var(--vpc);stroke-width:1.6}
+.s-az{fill:none;stroke:var(--muted);stroke-width:1.2;stroke-dasharray:6 5}
+.s-pub{fill:color-mix(in srgb,var(--pub) 12%,var(--surface));stroke:var(--pub);stroke-width:1.4}
+.s-pri{fill:color-mix(in srgb,var(--pri) 12%,var(--surface));stroke:var(--pri);stroke-width:1.4}
+.s-db{fill:color-mix(in srgb,var(--db) 12%,var(--surface));stroke:var(--db);stroke-width:1.4}
+.s-box{fill:var(--surface);stroke:var(--fg);stroke-width:1.4}
+.s-gw{fill:var(--fg)}
+.s-gwt{fill:var(--bg);font-size:13px;font-weight:700}
+.s-net{fill:color-mix(in srgb,var(--fg) 6%,var(--surface));stroke:var(--muted);stroke-width:1.2}
+.s-t{fill:var(--fg);font-size:13px;font-weight:700}
+.s-s{fill:var(--muted);font-size:11.5px}
+.s-m{fill:var(--muted);font-size:11.5px;font-family:var(--f-mono)}
+.s-ln{stroke:var(--fg);stroke-width:1.5;fill:none}
+.s-in{stroke:var(--accent);stroke-width:2;fill:none}
+.s-out{stroke:var(--amber);stroke-width:2;fill:none}
+.s-x{stroke:var(--bad);stroke-width:1.6;fill:none;stroke-dasharray:5 4}
+.s-tin{fill:var(--accent);font-size:12px;font-weight:700}
+.s-tout{fill:var(--amber);font-size:12px;font-weight:700}
+.s-tx{fill:var(--bad);font-size:12px;font-weight:700}
+.c-pub{fill:var(--pub)} .c-pri{fill:var(--pri)} .c-db{fill:var(--db)}
+
+footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--line);color:var(--muted);font-size:13px}
+@media (max-width:560px){.vflow .row{grid-template-columns:minmax(0,1fr)}.vflow .d{padding-bottom:4px}}
+</style>
+
+<div class="wrap">
+
+<header>
+  <div class="eyebrow">AWS NETWORK BASICS</div>
+  <h1>AWSネットワーク基礎</h1>
+  <p class="sub">IPアドレスから VPC / Subnet / Route / Gateway / Security まで</p>
+  <div class="mnemonic" aria-label="覚え方">
+    <span class="step">住所</span><span class="arr">→</span>
+    <span class="step">区画</span><span class="arr">→</span>
+    <span class="step">道順</span><span class="arr">→</span>
+    <span class="step">出入口</span><span class="arr">→</span>
+    <span class="step">警備</span>
+  </div>
+  <nav class="toc" aria-label="目次">
+    <a href="#c1"><b>01</b>全体像</a>
+    <a href="#c2"><b>02</b>IPアドレスとCIDR</a>
+    <a href="#c3"><b>03</b>VPCとSubnet</a>
+    <a href="#c4"><b>04</b>ルートテーブル</a>
+    <a href="#c5"><b>05</b>IGWとNAT Gateway</a>
+    <a href="#c6"><b>06</b>VGW / Peering / Endpoint</a>
+    <a href="#c7"><b>07</b>セキュリティ</a>
+    <a href="#c8"><b>08</b>IP制御できる場所</a>
+    <a href="#c9"><b>09</b>API Gateway</a>
+    <a href="#c10"><b>10</b>全体まとめ</a>
+    <a href="#cdk"><b>+</b>CDKとCloudFormation</a>
+    <a href="#glossary"><b>+</b>用語早見表</a>
+  </nav>
+</header>
+
+<!-- 1 -->
+<section class="ch" id="c1">
+  <div class="chhead"><span class="chno">01</span><h2><small>CHAPTER 1</small>AWSネットワークの全体像</h2></div>
+  <p>AWSのネットワークは6つの要素に分けて考えると整理しやすくなります。街に例えると、それぞれの役割がイメージしやすくなります。</p>
+  <div class="tbl"><table>
+    <thead><tr><th>#</th><th>要素</th><th>役割</th><th>街に例えると</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">1</td><td><b>IP / CIDR</b></td><td>IPアドレスと範囲</td><td>住所</td></tr>
+      <tr><td class="mono">2</td><td><b>VPC / Subnet</b></td><td>ネットワークの作成と分割</td><td>大きな土地 / 区画</td></tr>
+      <tr><td class="mono">3</td><td><b>Route Table</b></td><td>通信経路</td><td>案内標識</td></tr>
+      <tr><td class="mono">4</td><td><b>Gateway</b></td><td>外部ネットワークとの接続</td><td>出入口</td></tr>
+      <tr><td class="mono">5</td><td><b>Security（SG / WAF）</b></td><td>アクセス制御と通信の保護</td><td>警備員</td></tr>
+      <tr><td class="mono">6</td><td><b>ACM</b></td><td>HTTPS用証明書の管理</td><td>（通信を暗号化する鍵の管理）</td></tr>
+    </tbody>
+  </table></div>
+  <h3>通信を確認する順番</h3>
+  <div class="flow">
+    <span class="n">宛先IP<small>どこへ？</small></span><span class="a">→</span>
+    <span class="n">一致するRoute<small>どの道？</small></span><span class="a">→</span>
+    <span class="n">通るGateway・接続<small>どの出入口？</small></span><span class="a">→</span>
+    <span class="n hl">SG / WAF等の許可<small>通してよい？</small></span>
+  </div>
+  <p class="note">考え方の順番です。実際のパケット処理順序を厳密に示すものではありません。</p>
+</section>
+
+<!-- 2 -->
+<section class="ch" id="c2">
+  <div class="chhead"><span class="chno">02</span><h2><small>CHAPTER 2</small>IPアドレスとCIDR</h2></div>
+  <h3>IPアドレスと2進数</h3>
+  <p>IPv4アドレスは32bitで、8bit × 4つに区切って10進数で表記します。各bitには右から 1, 2, 4 … 128 の重みがあります。</p>
+  <figure>
+    <div class="bitrow">
+      <div>
+        <h4><span class="mono">192</span> = 128 + 64</h4>
+        <div class="bits">
+          <div class="w">128</div><div class="w">64</div><div class="w">32</div><div class="w">16</div><div class="w">8</div><div class="w">4</div><div class="w">2</div><div class="w">1</div>
+          <div class="on">1</div><div class="on">1</div><div>0</div><div>0</div><div>0</div><div>0</div><div>0</div><div>0</div>
+        </div>
+      </div>
+      <div>
+        <h4><span class="mono">10</span> = 8 + 2</h4>
+        <div class="bits">
+          <div class="w">128</div><div class="w">64</div><div class="w">32</div><div class="w">16</div><div class="w">8</div><div class="w">4</div><div class="w">2</div><div class="w">1</div>
+          <div>0</div><div>0</div><div>0</div><div>0</div><div class="on">1</div><div>0</div><div class="on">1</div><div>0</div>
+        </div>
+      </div>
+    </div>
+    <div class="scroll" style="margin-top:18px"><table style="font-size:14px">
+      <tr><th>10進数</th><td class="mono">192</td><td class="mono">168</td><td class="mono">1</td><td class="mono">10</td></tr>
+      <tr><th>2進数</th><td class="mono">11000000</td><td class="mono">10101000</td><td class="mono">00000001</td><td class="mono">00001010</td></tr>
+    </table></div>
+    <figcaption>192.168.1.10 を2進数にしたもの。10進→2進は「使う重みに1、使わない重みに0」、2進→10進は「1の位置の重みを足す」。</figcaption>
+  </figure>
+
+  <h3>CIDRとサブネットマスク</h3>
+  <p><code>/24</code> は「先頭24bitがネットワーク部」という意味です。残りのbit（ホスト部）で個々のアドレスを表します。</p>
+  <figure>
+    <div class="scroll">
+      <div class="addr32" aria-label="/24 のネットワーク部とホスト部">
+        <span class="oct"><i class="netp">1</i><i class="netp">1</i><i class="netp">1</i><i class="netp">1</i><i class="netp">1</i><i class="netp">1</i><i class="netp">1</i><i class="netp">1</i></span>.
+        <span class="oct"><i class="netp">1</i><i class="netp">1</i><i class="netp">1</i><i class="netp">1</i><i class="netp">1</i><i class="netp">1</i><i class="netp">1</i><i class="netp">1</i></span>.
+        <span class="oct"><i class="netp">1</i><i class="netp">1</i><i class="netp">1</i><i class="netp">1</i><i class="netp">1</i><i class="netp">1</i><i class="netp">1</i><i class="netp">1</i></span>.
+        <span class="oct"><i class="hostp">0</i><i class="hostp">0</i><i class="hostp">0</i><i class="hostp">0</i><i class="hostp">0</i><i class="hostp">0</i><i class="hostp">0</i><i class="hostp">0</i></span>
+        <span style="margin-left:8px">= 255.255.255.0</span>
+      </div>
+    </div>
+    <div class="legend"><span><i style="background:color-mix(in srgb,var(--pri) 40%,var(--surface))"></i>ネットワーク部（24bit）</span><span><i style="background:color-mix(in srgb,var(--amber) 40%,var(--surface))"></i>ホスト部（8bit → 2⁸ = 256アドレス）</span></div>
+  </figure>
+  <div class="tbl"><table>
+    <thead><tr><th>CIDR</th><th>サブネットマスク</th><th style="text-align:right">IP数</th><th style="width:34%">ホスト部のbit数</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">/16</td><td class="mono">255.255.0.0</td><td class="num">65,536</td><td><div class="bar" style="width:100%"></div></td></tr>
+      <tr><td class="mono">/24</td><td class="mono">255.255.255.0</td><td class="num">256</td><td><div class="bar" style="width:50%"></div></td></tr>
+      <tr><td class="mono">/25</td><td class="mono">255.255.255.128</td><td class="num">128</td><td><div class="bar" style="width:43.75%"></div></td></tr>
+      <tr><td class="mono">/26</td><td class="mono">255.255.255.192</td><td class="num">64</td><td><div class="bar" style="width:37.5%"></div></td></tr>
+      <tr><td class="mono">/27</td><td class="mono">255.255.255.224</td><td class="num">32</td><td><div class="bar" style="width:31.25%"></div></td></tr>
+      <tr><td class="mono">/28</td><td class="mono">255.255.255.240</td><td class="num">16</td><td><div class="bar" style="width:25%"></div></td></tr>
+      <tr><td class="mono">/32</td><td class="mono">255.255.255.255</td><td class="num">1</td><td><div class="bar" style="width:0"></div></td></tr>
+    </tbody>
+  </table></div>
+  <div class="point"><b>ポイント：</b>「/」の数値が1増えるとアドレス数は半分になります（ホスト部が1bit減るため）。<code>/32</code> は単一のIPアドレスです。</div>
+</section>
+
+<!-- 3 -->
+<section class="ch" id="c3">
+  <div class="chhead"><span class="chno">03</span><h2><small>CHAPTER 3</small>VPCとSubnet</h2></div>
+  <p><b>VPC</b> はAWS上の仮想ネットワーク、<b>Subnet</b> はVPCのIP範囲を分割した区画です。例えば VPC <code>10.0.0.0/16</code> は <code>10.0.0.0～10.0.255.255</code>（65,536アドレス）を持ち、これを <code>/24</code> のSubnetに切り分けて使います。</p>
+  <figure>
+    <div class="scroll">
+    <svg class="dg w" viewBox="0 0 760 440" role="img" aria-label="VPC 10.0.0.0/16 を AZ-A と AZ-C に分け、それぞれに Public・Private・DB の3つのサブネットを配置した構成図">
+      <rect class="s-vpc" x="10" y="10" width="740" height="420" rx="12"/>
+      <text class="s-t" x="28" y="36">VPC</text><text class="s-m" x="64" y="36">10.0.0.0/16</text>
+      <rect class="s-az" x="28" y="54" width="342" height="358" rx="10"/>
+      <rect class="s-az" x="390" y="54" width="342" height="358" rx="10"/>
+      <text class="s-t" x="46" y="80">AZ-A</text><text class="s-s" x="92" y="80">Availability Zone</text>
+      <text class="s-t" x="408" y="80">AZ-C</text><text class="s-s" x="454" y="80">Availability Zone</text>
+      <!-- AZ-A -->
+      <rect class="s-pub" x="46" y="96" width="306" height="90" rx="8"/>
+      <text class="s-t" x="62" y="124">Public A</text><text class="s-m" x="62" y="144">10.0.1.0/24</text>
+      <rect class="s-box" x="250" y="118" width="84" height="46" rx="6"/><text class="s-t" x="292" y="146" text-anchor="middle">ALB</text>
+      <rect class="s-pri" x="46" y="202" width="306" height="90" rx="8"/>
+      <text class="s-t" x="62" y="230">Private A</text><text class="s-m" x="62" y="250">10.0.11.0/24</text>
+      <rect class="s-box" x="250" y="224" width="84" height="46" rx="6"/><text class="s-t" x="292" y="252" text-anchor="middle">ECS</text>
+      <rect class="s-db" x="46" y="308" width="306" height="90" rx="8"/>
+      <text class="s-t" x="62" y="336">DB A</text><text class="s-m" x="62" y="356">10.0.21.0/24</text>
+      <rect class="s-box" x="250" y="330" width="84" height="46" rx="6"/><text class="s-t" x="292" y="358" text-anchor="middle">RDS</text>
+      <!-- AZ-C -->
+      <rect class="s-pub" x="408" y="96" width="306" height="90" rx="8"/>
+      <text class="s-t" x="424" y="124">Public C</text><text class="s-m" x="424" y="144">10.0.2.0/24</text>
+      <rect class="s-box" x="612" y="118" width="84" height="46" rx="6"/><text class="s-t" x="654" y="146" text-anchor="middle">ALB</text>
+      <rect class="s-pri" x="408" y="202" width="306" height="90" rx="8"/>
+      <text class="s-t" x="424" y="230">Private C</text><text class="s-m" x="424" y="250">10.0.12.0/24</text>
+      <rect class="s-box" x="612" y="224" width="84" height="46" rx="6"/><text class="s-t" x="654" y="252" text-anchor="middle">ECS</text>
+      <rect class="s-db" x="408" y="308" width="306" height="90" rx="8"/>
+      <text class="s-t" x="424" y="336">DB C</text><text class="s-m" x="424" y="356">10.0.22.0/24</text>
+      <rect class="s-box" x="612" y="330" width="84" height="46" rx="6"/><text class="s-t" x="654" y="358" text-anchor="middle">RDS</text>
+    </svg>
+    </div>
+    <div class="legend"><span><i class="" style="background:var(--pub)"></i>Public Subnet</span><span><i style="background:var(--pri)"></i>Private Subnet</span><span><i style="background:var(--db)"></i>DB Subnet</span><span>点線 = AZ</span></div>
+    <figcaption>同じ役割のSubnetを2つのAZに1つずつ置く、よくある3層構成。片方のAZに障害が起きても、もう片方で動き続けられます。</figcaption>
+  </figure>
+  <div class="tbl"><table>
+    <thead><tr><th>Subnet</th><th>AZ-A</th><th>AZ-C</th><th>主な配置</th></tr></thead>
+    <tbody>
+      <tr><td><span class="tag" style="color:var(--pub)">Public</span></td><td class="mono">10.0.1.0/24</td><td class="mono">10.0.2.0/24</td><td>ALB</td></tr>
+      <tr><td><span class="tag" style="color:var(--pri)">Private</span></td><td class="mono">10.0.11.0/24</td><td class="mono">10.0.12.0/24</td><td>ECS</td></tr>
+      <tr><td><span class="tag" style="color:var(--db)">DB</span></td><td class="mono">10.0.21.0/24</td><td class="mono">10.0.22.0/24</td><td>RDS</td></tr>
+    </tbody>
+  </table></div>
+  <div class="grid3">
+    <div class="card"><span class="k">RULE 1</span><h3>Subnetは必ず1つのAZに所属</h3><p>1つのSubnetが複数のAZにまたがることはありません。</p></div>
+    <div class="card"><span class="k">RULE 2</span><h3>複数AZに分散して可用性UP</h3><p>同じ役割のSubnetをAZごとに用意します。</p></div>
+    <div class="card"><span class="k">RULE 3</span><h3>Public/Privateはルートで決まる</h3><p>IPの数字ではなく、主にルートテーブルの設定（IGWへの経路があるか）で決まります。</p></div>
+  </div>
+</section>
+
+<!-- 4 -->
+<section class="ch" id="c4">
+  <div class="chhead"><span class="chno">04</span><h2><small>CHAPTER 4</small>ルートテーブル</h2></div>
+  <p>ルートテーブルは通信の<b>案内標識</b>です。「この宛先（Destination）ならこの転送先（Target）へ」というルールの一覧です。</p>
+  <div class="tbl"><table>
+    <thead><tr><th>Destination（宛先）</th><th>Target（転送先）</th><th>意味</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">10.0.0.0/16</td><td class="mono">local</td><td>VPC内部の通信</td></tr>
+      <tr><td class="mono">10.1.0.0/16</td><td class="mono">pcx-xxxx</td><td>VPC Peering 先のVPCへ</td></tr>
+      <tr><td class="mono">0.0.0.0/0</td><td class="mono">igw-xxxx</td><td>他に一致しないIPv4通信をIGWへ</td></tr>
+    </tbody>
+  </table></div>
+  <h3>例：宛先 <code>10.1.2.20</code> はどこへ行く？</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>Destination</th><th>一致する？</th><th>プレフィックス長</th><th>結果</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">10.0.0.0/16</td><td><span class="tag ng">不一致</span></td><td class="mono">/16</td><td>—</td></tr>
+      <tr class="hit"><td class="mono">10.1.0.0/16</td><td><span class="tag ok">一致</span></td><td class="mono">/16</td><td><b>採用 → Peeringへ</b></td></tr>
+      <tr><td class="mono">0.0.0.0/0</td><td><span class="tag ok">一致</span></td><td class="mono">/0</td><td>より具体的なルートがあるので使わない</td></tr>
+    </tbody>
+  </table></div>
+  <div class="point"><b>最長プレフィックス一致：</b>複数のルートに一致したときは、「/」の数値が大きい（範囲が狭く具体的な）ルートが優先されます。</div>
+</section>
+
+<!-- 5 -->
+<section class="ch" id="c5">
+  <div class="chhead"><span class="chno">05</span><h2><small>CHAPTER 5</small>Internet GatewayとNAT Gateway</h2></div>
+  <div class="grid3">
+    <div class="card"><span class="k">IGW</span><h3>Internet Gateway</h3><p>VPCとインターネットの出入口。VPCにアタッチします。公開ALBなどの通信に利用。</p></div>
+    <div class="card"><span class="k">NAT GW</span><h3>NAT Gateway</h3><p>Private Subnetから外へ出る通信を中継。通常のパブリックNAT GatewayはPublic Subnetに置きます。</p></div>
+  </div>
+  <figure>
+    <div class="scroll">
+    <svg class="dg w" viewBox="0 0 760 470" role="img" aria-label="外からの通信はIGW経由でALBに届きECSへ転送される。ECSから外への通信はNAT Gateway、IGWを経由してインターネットへ出る">
+      <defs>
+        <marker id="mIn" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" style="fill:var(--accent)"/></marker>
+        <marker id="mOut" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" style="fill:var(--amber)"/></marker>
+      </defs>
+      <rect class="s-net" x="250" y="8" width="260" height="46" rx="23"/>
+      <text class="s-t" x="380" y="36" text-anchor="middle">Internet</text>
+      <rect class="s-net" x="590" y="8" width="150" height="46" rx="8"/>
+      <text class="s-t" x="665" y="36" text-anchor="middle">外部API</text>
+
+      <rect class="s-vpc" x="20" y="116" width="720" height="344" rx="12"/>
+      <text class="s-t" x="38" y="142">VPC</text>
+
+      <rect class="s-gw" x="320" y="96" width="120" height="40" rx="6"/>
+      <text class="s-gwt" x="380" y="121" text-anchor="middle">IGW</text>
+
+      <rect class="s-pub" x="44" y="160" width="672" height="120" rx="8"/>
+      <text class="s-t" x="60" y="182">Public Subnet</text>
+      <rect class="s-box" x="100" y="208" width="170" height="56" rx="6"/>
+      <text class="s-t" x="185" y="232" text-anchor="middle">ALB</text><text class="s-s" x="185" y="250" text-anchor="middle">外部HTTPSを受信</text>
+      <rect class="s-box" x="490" y="208" width="170" height="56" rx="6"/>
+      <text class="s-t" x="575" y="232" text-anchor="middle">NAT Gateway</text><text class="s-s" x="575" y="250" text-anchor="middle">外向き通信を中継</text>
+
+      <rect class="s-pri" x="44" y="304" width="672" height="136" rx="8"/>
+      <text class="s-t" x="60" y="326">Private Subnet</text>
+      <rect class="s-box" x="295" y="364" width="170" height="56" rx="6"/>
+      <text class="s-t" x="380" y="397" text-anchor="middle">ECS / EC2</text>
+
+      <!-- inbound -->
+      <line class="s-in" x1="360" y1="56" x2="360" y2="94" marker-end="url(#mIn)"/>
+      <path class="s-in" d="M330 138 L215 206" marker-end="url(#mIn)"/>
+      <text class="s-tin" x="110" y="176">① HTTPS受信</text>
+      <path class="s-in" d="M210 266 L320 362" marker-end="url(#mIn)"/>
+      <text class="s-tin" x="160" y="330">② 転送</text>
+      <!-- outbound -->
+      <path class="s-out" d="M440 362 L545 266" marker-end="url(#mOut)"/>
+      <text class="s-tout" x="500" y="330">❶ 外部API呼び出し</text>
+      <path class="s-out" d="M560 206 L432 138" marker-end="url(#mOut)"/>
+      <text class="s-tout" x="510" y="168">❷</text>
+      <line class="s-out" x1="400" y1="94" x2="400" y2="56" marker-end="url(#mOut)"/>
+      <path class="s-out" d="M512 30 L586 30" marker-end="url(#mOut)"/>
+      <text class="s-tout" x="414" y="80">❸</text>
+    </svg>
+    </div>
+    <div class="legend"><span><i style="background:var(--accent)"></i>①② 外から来る通信（Internet → IGW → ALB → ECS）</span><span><i style="background:var(--amber)"></i>❶❷❸ 内から出る通信（ECS → NAT GW → IGW → 外部API）</span></div>
+    <figcaption>NAT Gatewayは「内側から始めた通信」だけを中継します。NAT Gateway経由でインターネットからECSへ自由に新規接続することはできません。</figcaption>
+  </figure>
+  <div class="tbl"><table>
+    <thead><tr><th></th><th>IGW</th><th>NAT Gateway</th></tr></thead>
+    <tbody>
+      <tr><th>置き場所</th><td>VPCにアタッチ</td><td>Public Subnet（パブリックNATの場合）</td></tr>
+      <tr><th>通信の向き</th><td>インターネット ⇄ VPC</td><td>Private → インターネット（内側から開始）</td></tr>
+      <tr><th>主な用途</th><td>公開ALBなどの受信・送信</td><td>ECSが外部APIを呼ぶ、パッチ取得など</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<!-- 6 -->
+<section class="ch" id="c6">
+  <div class="chhead"><span class="chno">06</span><h2><small>CHAPTER 6</small>その他のネットワーク接続</h2></div>
+  <p>覚え方：<b>VGW＝VPN</b>、<b>Peering＝VPC同士</b>、<b>Endpoint＝AWSサービスへの近道</b>。</p>
+
+  <h3>VGW（Virtual Private Gateway）</h3>
+  <p>Site-to-Site VPNなどで使う、AWS側のゲートです。</p>
+  <figure>
+    <div class="flow">
+      <span class="n">社内ネットワーク</span><span class="a">→</span>
+      <span class="n">社内ルーター</span><span class="a">→</span>
+      <span class="n am">VPN<small>暗号化トンネル</small></span><span class="a">→</span>
+      <span class="n hl">VGW</span><span class="a">→</span>
+      <span class="n">VPC</span><span class="a">→</span>
+      <span class="n">EC2 / ECS</span>
+    </div>
+  </figure>
+
+  <h3>VPC Peering</h3>
+  <p>VPC同士をプライベートIPで接続します。ただし<b>推移的ルーティングは不可</b>です。</p>
+  <figure>
+    <div class="scroll">
+    <svg class="dg" viewBox="0 0 640 230" role="img" aria-label="VPC-AとB、BとCはPeeringで接続されているが、AからCへはBを経由して自動では通信できない" style="max-width:640px;margin:auto">
+      <rect class="s-vpc" x="20" y="40" width="170" height="70" rx="10"/>
+      <text class="s-t" x="105" y="70" text-anchor="middle">VPC-A</text><text class="s-m" x="105" y="92" text-anchor="middle">10.0.0.0/16</text>
+      <rect class="s-vpc" x="450" y="40" width="170" height="70" rx="10"/>
+      <text class="s-t" x="535" y="70" text-anchor="middle">VPC-B</text><text class="s-m" x="535" y="92" text-anchor="middle">10.1.0.0/16</text>
+      <rect class="s-vpc" x="235" y="150" width="170" height="70" rx="10"/>
+      <text class="s-t" x="320" y="180" text-anchor="middle">VPC-C</text><text class="s-m" x="320" y="202" text-anchor="middle">10.2.0.0/16</text>
+      <line class="s-in" x1="190" y1="75" x2="450" y2="75"/>
+      <text class="s-tin" x="320" y="66" text-anchor="middle">Peering ✓</text>
+      <line class="s-in" x1="500" y1="110" x2="405" y2="170"/>
+      <text class="s-tin" x="480" y="152">Peering ✓</text>
+      <line class="s-x" x1="140" y1="110" x2="235" y2="170"/>
+      <text class="s-tx" x="30" y="152">A↔C ✕ 自動では不可</text>
+    </svg>
+    </div>
+    <figcaption>A↔B、B↔Cが接続済みでも、A↔Cは通信できません（必要ならA↔Cも直接Peeringする）。多数のVPCや拠点をまとめて接続するなら TGW（Transit Gateway）も選択肢です。</figcaption>
+  </figure>
+
+  <h3>VPC Endpoint</h3>
+  <p>対応するAWSサービスへ、インターネットを経由せずプライベートに接続します。</p>
+  <figure>
+    <div class="flow">
+      <span class="n" style="border-color:var(--pri)">ECS<small>Private Subnet</small></span><span class="a">→</span>
+      <span class="n hl">VPC Endpoint</span><span class="a">→</span>
+      <span class="n">S3</span>
+    </div>
+    <figcaption>対象例：S3、DynamoDB、ECR、Secrets Manager。Gateway型とInterface型などがあり、設定方法や対応先が異なります。</figcaption>
+  </figure>
+  <div class="tbl"><table>
+    <thead><tr><th>接続</th><th>つなぐ相手</th><th>使う場面</th></tr></thead>
+    <tbody>
+      <tr><td><b>VGW</b></td><td>社内ネットワーク（VPN）</td><td>オンプレミスとVPCを安全に接続</td></tr>
+      <tr><td><b>VPC Peering</b></td><td>別のVPC</td><td>少数のVPC同士をプライベートIPで接続</td></tr>
+      <tr><td><b>TGW</b></td><td>多数のVPC・拠点</td><td>接続数が多いときのハブ</td></tr>
+      <tr><td><b>VPC Endpoint</b></td><td>AWSサービス</td><td>PrivateからS3等へインターネットを通らずに接続</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<!-- 7 -->
+<section class="ch" id="c7">
+  <div class="chhead"><span class="chno">07</span><h2><small>CHAPTER 7</small>セキュリティ（SG / WAF / Web ACL / ACM）</h2></div>
+  <div class="grid3">
+    <div class="card"><span class="k">SG</span><h3>Security Group</h3><p>IP・ポートなどで通信を許可する仮想ファイアウォール。</p></div>
+    <div class="card"><span class="k">WAF</span><h3>Web Application Firewall</h3><p>SQLインジェクション、XSSなどのWeb攻撃を防御。</p></div>
+    <div class="card"><span class="k">WEB ACL</span><h3>Web Access Control List</h3><p>WAFに設定するルールの集合。特定IPのブロック、SQLi・XSS対策、大量アクセス制限など。</p></div>
+    <div class="card"><span class="k">ACM</span><h3>AWS Certificate Manager</h3><p>SSL/TLS証明書を管理。ALBのHTTPSなどで使用。</p></div>
+  </div>
+  <figure>
+    <div class="flow">
+      <span class="n">Internet</span><span class="a">→</span>
+      <span class="n am">WAF / Web ACL<small>Web攻撃対策</small></span><span class="a">→</span>
+      <span class="n hl">ALB + ACM<small>HTTPS（暗号化）</small></span><span class="a">→</span>
+      <span class="n" style="border-color:var(--pri);color:var(--pri)">SGによる制御<small>通信の許可</small></span><span class="a">→</span>
+      <span class="n">ECS</span>
+    </div>
+    <figcaption>役割を並べた概念図です。実際にはWAFはALBに関連付け、SGはALB / ECSそれぞれのネットワークインターフェースに適用します。</figcaption>
+  </figure>
+  <h3>SG設定例</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>方向</th><th>プロトコル</th><th>ポート</th><th>Source</th></tr></thead>
+    <tbody><tr><td>Inbound</td><td>TCP</td><td class="mono">443</td><td class="mono">203.0.113.10/32</td></tr></tbody>
+  </table></div>
+  <p class="note">203.0.113.10 は説明用のIPアドレスです。</p>
+  <div class="point"><b>使い分け：</b>ACM＝暗号化、WAF＝Web攻撃対策、SG＝ネットワーク通信の許可。</div>
+</section>
+
+<!-- 8 -->
+<section class="ch" id="c8">
+  <div class="chhead"><span class="chno">08</span><h2><small>CHAPTER 8</small>IP制御できる場所</h2></div>
+  <p>「特定のIPだけ許可したい」とき、どこで何を使うかの一覧です。</p>
+  <div class="tbl"><table>
+    <thead><tr><th>場所</th><th>IP制御</th><th>方法</th></tr></thead>
+    <tbody>
+      <tr><td><b>WAF / Web ACL</b></td><td><span class="tag ok">直接できる</span></td><td>IP SetによるAllow / Block</td></tr>
+      <tr><td><b>ALB</b></td><td><span class="tag ok">直接できる</span></td><td>SGで送信元IPを制限</td></tr>
+      <tr><td><b>API Gateway</b></td><td><span class="tag ok">できる</span></td><td>Resource Policy / WAF（APIタイプによる）</td></tr>
+      <tr><td><b>VPC Endpoint</b></td><td><span class="tag warn">種類による</span></td><td>Endpoint Policy / SG等</td></tr>
+      <tr><td><b>VPC Peering</b></td><td><span class="tag warn">組み合わせ</span></td><td>Route + SG + NACL</td></tr>
+      <tr><td><b>IGW</b></td><td><span class="tag warn">間接的</span></td><td>直接ではなくSG / NACL / Route等で制御</td></tr>
+      <tr><td><b>NAT Gateway</b></td><td><span class="tag warn">間接的</span></td><td>Routeで経路を決め、細かい宛先制御はFirewall等</td></tr>
+      <tr><td><b>ACM</b></td><td><span class="tag ng">なし</span></td><td>IP制御機能はない</td></tr>
+    </tbody>
+  </table></div>
+  <div class="grid3">
+    <div class="card"><span class="k">SG の例</span><p>HTTPS / TCP 443 / Source <code>203.0.113.10/32</code></p></div>
+    <div class="card"><span class="k">WAF の例</span><p><code>203.0.113.10/32</code> のみ許可、その他はBLOCK</p></div>
+  </div>
+  <ul class="note" style="margin:0;padding-left:28px">
+    <li><code>/32</code> は単一のIPv4アドレス。</li>
+    <li>IGW自体に一般的なIP許可リストを直接設定するわけではありません。</li>
+    <li>Interface EndpointにはSGを使えますが、Gateway EndpointにSGを直接付けることはありません。</li>
+    <li>Endpoint Policyは主にAWSサービスへのアクセス権限を制御します。</li>
+  </ul>
+</section>
+
+<!-- 9 -->
+<section class="ch" id="c9">
+  <div class="chhead"><span class="chno">09</span><h2><small>CHAPTER 9</small>API GatewayでもIP制限できる</h2></div>
+  <figure>
+    <div class="flow">
+      <span class="n">会社の固定IP<small class="mono">203.0.113.10</small></span><span class="a">→</span>
+      <span class="n">API Gateway</span><span class="a">→</span>
+      <span class="n hl">Resource Policy<small class="mono">aws:SourceIp</small></span><span class="a">→</span>
+      <span class="n">Lambda</span>
+    </div>
+    <figcaption>REST APIでは、Resource Policyの <code>aws:SourceIp</code> 条件で固定IPからのアクセスだけを許可できます。</figcaption>
+  </figure>
+  <div class="tbl"><table>
+    <thead><tr><th>方法</th><th>内容</th><th>注意点</th></tr></thead>
+    <tbody>
+      <tr><td><b>Resource Policy</b></td><td>REST APIで固定IP制限に利用</td><td>HTTP APIには同じ機能がないため別の設計が必要</td></tr>
+      <tr><td><b>WAF + API Gateway</b></td><td>REST APIステージに関連付けてIP制限・攻撃対策・レート制限</td><td>—</td></tr>
+      <tr><td><b>Private API</b></td><td>インターネットに公開しないREST API</td><td>—</td></tr>
+      <tr><td><b>IAM認証 / Lambda Authorizer</b></td><td>呼び出し元の認証・認可</td><td>—</td></tr>
+    </tbody>
+  </table></div>
+  <p class="note">公開API GatewayにEC2のようなSGを直接付けるわけではありません。</p>
+</section>
+
+<!-- 10 -->
+<section class="ch" id="c10">
+  <div class="chhead"><span class="chno">10</span><h2><small>CHAPTER 10</small>全体まとめ：通信を追えば読める</h2></div>
+  <figure>
+    <div class="vflow">
+      <div class="row"><div class="n">Internet</div><div class="d">利用者</div></div>
+      <div class="row"><div class="down">↓</div></div>
+      <div class="row"><div class="n" style="border-color:var(--amber);color:var(--amber)">WAF / Web ACL</div><div class="d">不正通信の防御</div></div>
+      <div class="row"><div class="down">↓</div></div>
+      <div class="row"><div class="n">IGW</div><div class="d">Internetとの出入口</div></div>
+      <div class="row"><div class="down">↓</div></div>
+      <div class="row"><div class="n" style="border-color:var(--accent);color:var(--accent)">ALB + ACM</div><div class="d">HTTPS終端・振り分け</div></div>
+      <div class="row"><div class="down">↓</div></div>
+      <div class="row"><div class="n" style="border-color:var(--pri);color:var(--pri)">SG</div><div class="d">通信の許可</div></div>
+      <div class="row"><div class="down">↓</div></div>
+      <div class="row"><div class="n">ECS</div><div class="d">Webアプリ</div></div>
+    </div>
+    <figcaption>役割の概念図です。WAFはALBに関連付け、SGはALB / ECSそれぞれに適用します。</figcaption>
+  </figure>
+
+  <h3>Public / Private Subnet のルートテーブル比較</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>Subnet</th><th>Destination</th><th>Target</th></tr></thead>
+    <tbody>
+      <tr><td rowspan="2"><span class="tag" style="color:var(--pub)">Public</span></td><td class="mono">10.0.0.0/16</td><td class="mono">local</td></tr>
+      <tr class="hit"><td class="mono">0.0.0.0/0</td><td class="mono">IGW</td></tr>
+      <tr><td rowspan="2"><span class="tag" style="color:var(--pri)">Private</span></td><td class="mono">10.0.0.0/16</td><td class="mono">local</td></tr>
+      <tr class="hit"><td class="mono">0.0.0.0/0</td><td class="mono">NAT Gateway</td></tr>
+    </tbody>
+  </table></div>
+  <p class="note">違いは <code>0.0.0.0/0</code> の行だけ。Private Subnetは、インターネットへのルートを持たない構成にすることもできます。</p>
+
+  <h3>覚える順番</h3>
+  <div class="tbl"><table>
+    <tbody>
+      <tr><td class="mono">1</td><td><b>IP / CIDR</b></td><td>住所と範囲</td></tr>
+      <tr><td class="mono">2</td><td><b>VPC / Subnet</b></td><td>土地と区画</td></tr>
+      <tr><td class="mono">3</td><td><b>Route Table</b></td><td>宛先ごとの道順</td></tr>
+      <tr><td class="mono">4</td><td><b>IGW / NAT / VGW / Peering / Endpoint</b></td><td>接続先への経路</td></tr>
+      <tr><td class="mono">5</td><td><b>SG / WAF / Web ACL</b></td><td>通信許可と攻撃防御</td></tr>
+      <tr><td class="mono">6</td><td><b>ACM</b></td><td>HTTPS証明書</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<!-- CDK -->
+<section class="ch" id="cdk">
+  <div class="chhead"><span class="chno">+</span><h2><small>SUPPLEMENT</small>CDKとCloudFormation</h2></div>
+  <div class="grid3">
+    <div class="card"><span class="k">CDK</span><h3>Cloud Development Kit</h3><p>TypeScript / Python などのコードでAWSインフラを定義。</p></div>
+    <div class="card"><span class="k">CLOUDFORMATION</span><h3>AWS CloudFormation</h3><p>テンプレートに基づいてAWSリソースを構築・更新・削除。</p></div>
+  </div>
+  <figure>
+    <div class="flow">
+      <span class="n">CDKコード</span><span class="a">→ <code>cdk synth</code> →</span>
+      <span class="n">CloudFormation<br>テンプレート</span><span class="a">→ <code>cdk deploy</code> →</span>
+      <span class="n hl">CloudFormation</span><span class="a">→</span>
+      <span class="n">VPC / Subnet / SG / ALB / ECS</span>
+    </div>
+  </figure>
+</section>
+
+<!-- glossary -->
+<section class="ch" id="glossary">
+  <div class="chhead"><span class="chno">+</span><h2><small>GLOSSARY</small>用語早見表</h2></div>
+  <div class="tbl"><table>
+    <thead><tr><th>略称</th><th>正式名称</th><th>意味</th></tr></thead>
+    <tbody>
+      <tr><td><b>IP</b></td><td>Internet Protocol</td><td>通信先の住所を識別する仕組み</td></tr>
+      <tr><td><b>CIDR</b></td><td>Classless Inter-Domain Routing</td><td>IPアドレス範囲の表記</td></tr>
+      <tr><td><b>VPC</b></td><td>Virtual Private Cloud</td><td>仮想ネットワーク</td></tr>
+      <tr><td><b>Subnet</b></td><td>—</td><td>VPC内の区画</td></tr>
+      <tr><td><b>Route Table</b></td><td>—</td><td>通信経路の設定表</td></tr>
+      <tr><td><b>IGW</b></td><td>Internet Gateway</td><td>インターネット出入口</td></tr>
+      <tr><td><b>NGW / NAT GW</b></td><td>NAT Gateway</td><td>Private側の外向き通信を中継</td></tr>
+      <tr><td><b>VGW</b></td><td>Virtual Private Gateway</td><td>VPNのAWS側ゲート</td></tr>
+      <tr><td><b>TGW</b></td><td>Transit Gateway</td><td>多数のVPCや拠点を接続</td></tr>
+      <tr><td><b>VPC Peering</b></td><td>—</td><td>VPC同士を接続</td></tr>
+      <tr><td><b>VPC Endpoint</b></td><td>—</td><td>AWSサービス等へのプライベート接続</td></tr>
+      <tr><td><b>SG</b></td><td>Security Group</td><td>仮想ファイアウォール</td></tr>
+      <tr><td><b>NACL</b></td><td>Network Access Control List</td><td>サブネット単位の通信制御</td></tr>
+      <tr><td><b>WAF</b></td><td>Web Application Firewall</td><td>Web攻撃防御</td></tr>
+      <tr><td><b>Web ACL</b></td><td>Web Access Control List</td><td>WAFルールセット</td></tr>
+      <tr><td><b>ACM</b></td><td>AWS Certificate Manager</td><td>SSL/TLS証明書管理</td></tr>
+      <tr><td><b>ALB</b></td><td>Application Load Balancer</td><td>HTTP/HTTPS振り分け</td></tr>
+      <tr><td><b>API Gateway</b></td><td>Amazon API Gateway</td><td>API公開・管理・制御</td></tr>
+      <tr><td><b>CDK</b></td><td>Cloud Development Kit</td><td>コードでインフラを定義</td></tr>
+      <tr><td><b>CloudFormation</b></td><td>AWS CloudFormation</td><td>インフラ構築・管理</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<!-- key -->
+<section class="ch" id="key">
+  <div class="chhead"><span class="chno">!</span><h2><small>KEY POINTS</small>最重要ポイント</h2></div>
+  <div class="grid3">
+    <div class="card"><span class="k">どこにあるか</span><h3>IP / CIDR / VPC / Subnet</h3><p>住所・範囲・土地・区画を決める要素。</p></div>
+    <div class="card"><span class="k">どう通信するか</span><h3>Route Table / Gateway / Peering / Endpoint</h3><p>宛先ごとの道順と、外部・他VPC・AWSサービスへの経路。</p></div>
+    <div class="card"><span class="k">どう制御・保護するか</span><h3>SG / NACL / WAF / ACM</h3><p>通信の許可、Web攻撃の防御、HTTPSによる暗号化。</p></div>
+  </div>
+</section>
+
+<footer>AWSネットワーク基礎 完全解説資料より作成。図中のIPアドレス（203.0.113.10 など）は説明用の例です。</footer>
+</div>
+
+</body></html>
